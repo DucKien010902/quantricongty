@@ -11,6 +11,9 @@ import {
   ShieldAlert,
   PhoneCall,
   Save,
+  Lock,
+  Building2,
+  ShieldCheck,
 } from "lucide-react";
 import { Employee, DepartmentInfo } from "@/app/data/seed-employees";
 
@@ -20,6 +23,7 @@ interface EditProfileWizardModalProps {
   currentUser: any;
   departments: DepartmentInfo[];
   onSave: (updatedUser: any) => void;
+  isSelfProfile?: boolean;
 }
 
 const STEPS = [
@@ -35,12 +39,16 @@ export default function EditProfileWizardModal({
   currentUser,
   departments,
   onSave,
+  isSelfProfile = false,
 }: EditProfileWizardModalProps) {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [formData, setFormData] = useState<any>({
     // Step 1: Cá nhân
     name: currentUser?.name || "",
     code: currentUser?.code || currentUser?.id || "",
+    email: currentUser?.email || currentUser?.workEmail || "",
+    workEmail: currentUser?.workEmail || currentUser?.email || "",
+    phone: currentUser?.phone || "",
     attendanceCode: currentUser?.attendanceCode || "",
     gender: currentUser?.gender || "Nam",
     dob: currentUser?.dob || "",
@@ -54,14 +62,28 @@ export default function EditProfileWizardModal({
     // Step 2: Công việc
     department: currentUser?.department || departments[0]?.name || "Ban Giám Đốc",
     position: currentUser?.position || "Chuyên viên",
-    role: currentUser?.role || "SPECIALIST",
+    positionLevel:
+      currentUser?.positionLevel ||
+      (currentUser?.role === "ADMIN" || currentUser?.role === "CHAIRMAN" || currentUser?.role === "CEO"
+        ? "Ban Quản Trị"
+        : currentUser?.role === "LEADER" || currentUser?.role === "HEAD_OF_DEPARTMENT"
+        ? "Trưởng Ban"
+        : "Nhân Viên"),
+    role: currentUser?.role || "USER",
+    status: currentUser?.status || "active",
     workLevel: currentUser?.workLevel || "Lãnh đạo cấp cao",
     contractType: currentUser?.contractType || "Hợp đồng không xác định thời hạn",
     contractDuration: currentUser?.contractDuration || "Vô thời hạn",
     joinDate: currentUser?.joinDate || "",
     directManager: currentUser?.directManager || "Hội đồng Quản trị",
-    salaryGrade: currentUser?.salaryGrade || "Bậc 5",
     location: currentUser?.location || "Hà Nội",
+    education: currentUser?.education || "",
+    salaryGrade: currentUser?.salaryGrade || "Bậc 5",
+    baseSalary: currentUser?.baseSalary || "",
+    annualLeaveQuota: currentUser?.annualLeaveQuota !== undefined ? Number(currentUser.annualLeaveQuota) : 12,
+    carriedOverLeave: currentUser?.carriedOverLeave !== undefined ? Number(currentUser.carriedOverLeave) : 0,
+    performance: currentUser?.performance !== undefined ? Number(currentUser.performance) : 90,
+    projectsCount: currentUser?.projectsCount !== undefined ? Number(currentUser.projectsCount) : 1,
 
     // Step 3: Định danh & Thuế
     idNumber: currentUser?.idNumber || "",
@@ -74,9 +96,6 @@ export default function EditProfileWizardModal({
     hospital: currentUser?.hospital || "Bệnh viện Hữu Nghị Việt Đức",
 
     // Step 4: Liên hệ & Ngân hàng
-    phone: currentUser?.phone || "",
-    email: currentUser?.email || "",
-    workEmail: currentUser?.workEmail || currentUser?.email || "",
     personalEmail: currentUser?.personalEmail || "",
     permanentAddress: currentUser?.permanentAddress || "",
     currentAddress: currentUser?.currentAddress || "",
@@ -93,6 +112,9 @@ export default function EditProfileWizardModal({
       setFormData({
         name: currentUser?.name || "",
         code: currentUser?.code || currentUser?.id || "",
+        email: currentUser?.email || currentUser?.workEmail || "",
+        workEmail: currentUser?.workEmail || currentUser?.email || "",
+        phone: currentUser?.phone || "",
         attendanceCode: currentUser?.attendanceCode || "",
         gender: currentUser?.gender || "Nam",
         dob: currentUser?.dob || "",
@@ -104,14 +126,28 @@ export default function EditProfileWizardModal({
         hometown: currentUser?.hometown || "",
         department: currentUser?.department || departments[0]?.name || "Ban Giám Đốc",
         position: currentUser?.position || "Chuyên viên",
-        role: currentUser?.role || "SPECIALIST",
+        positionLevel:
+          currentUser?.positionLevel ||
+          (currentUser?.role === "ADMIN" || currentUser?.role === "CHAIRMAN" || currentUser?.role === "CEO"
+            ? "Ban Quản Trị"
+            : currentUser?.role === "LEADER" || currentUser?.role === "HEAD_OF_DEPARTMENT"
+            ? "Trưởng Ban"
+            : "Nhân Viên"),
+        role: currentUser?.role || "USER",
+        status: currentUser?.status || "active",
         workLevel: currentUser?.workLevel || "Lãnh đạo cấp cao",
         contractType: currentUser?.contractType || "Hợp đồng không xác định thời hạn",
         contractDuration: currentUser?.contractDuration || "Vô thời hạn",
         joinDate: currentUser?.joinDate || "",
         directManager: currentUser?.directManager || "Hội đồng Quản trị",
-        salaryGrade: currentUser?.salaryGrade || "Bậc 5",
         location: currentUser?.location || "Hà Nội",
+        education: currentUser?.education || "",
+        salaryGrade: currentUser?.salaryGrade || "Bậc 5",
+        baseSalary: currentUser?.baseSalary || "",
+        annualLeaveQuota: currentUser?.annualLeaveQuota !== undefined ? Number(currentUser.annualLeaveQuota) : 12,
+        carriedOverLeave: currentUser?.carriedOverLeave !== undefined ? Number(currentUser.carriedOverLeave) : 0,
+        performance: currentUser?.performance !== undefined ? Number(currentUser.performance) : 90,
+        projectsCount: currentUser?.projectsCount !== undefined ? Number(currentUser.projectsCount) : 1,
         idNumber: currentUser?.idNumber || "",
         idIssueDate: currentUser?.idIssueDate || "",
         idIssuePlace: currentUser?.idIssuePlace || "Cục Cảnh sát QLHC về TTXH",
@@ -120,9 +156,6 @@ export default function EditProfileWizardModal({
         socialInsuranceNo: currentUser?.socialInsuranceNo || "",
         healthInsuranceNo: currentUser?.healthInsuranceNo || "",
         hospital: currentUser?.hospital || "Bệnh viện Hữu Nghị Việt Đức",
-        phone: currentUser?.phone || "",
-        email: currentUser?.email || "",
-        workEmail: currentUser?.workEmail || currentUser?.email || "",
         personalEmail: currentUser?.personalEmail || "",
         permanentAddress: currentUser?.permanentAddress || "",
         currentAddress: currentUser?.currentAddress || "",
@@ -139,7 +172,15 @@ export default function EditProfileWizardModal({
   if (!isOpen) return null;
 
   const handleChange = (field: string, value: any) => {
-    setFormData((prev: any) => ({ ...prev, [field]: value }));
+    setFormData((prev: any) => {
+      const updated = { ...prev, [field]: value };
+      if (field === "email") {
+        updated.workEmail = value;
+      } else if (field === "workEmail") {
+        updated.email = value;
+      }
+      return updated;
+    });
   };
 
   const handleNext = () => {
@@ -157,7 +198,35 @@ export default function EditProfileWizardModal({
   };
 
   const handleFinalSave = () => {
-    onSave(formData);
+    let safeData = { ...formData };
+    if (isSelfProfile) {
+      // BẢO VỆ TUYỆT ĐỐI CÁC TRƯỜNG QUẢN TRỊ KHI CÁN BỘ TỰ CHỈNH SỬA HỒ SƠ:
+      // Giữ nguyên mã chấm công, mã NV, quyền hệ thống, chức danh, lương, phép từ currentUser
+      safeData = {
+        ...safeData,
+        code: currentUser?.code || currentUser?.id || "",
+        attendanceCode: currentUser?.attendanceCode || "",
+        role: currentUser?.role || "USER",
+        positionLevel: currentUser?.positionLevel || "Nhân Viên",
+        department: currentUser?.department || departments[0]?.name || "Ban Giám Đốc",
+        position: currentUser?.position || "Chuyên viên",
+        workLevel: currentUser?.workLevel || "",
+        status: currentUser?.status || "active",
+        salaryGrade: currentUser?.salaryGrade || "",
+        baseSalary: currentUser?.baseSalary || "",
+        annualLeaveQuota: currentUser?.annualLeaveQuota !== undefined ? Number(currentUser.annualLeaveQuota) : 12,
+        carriedOverLeave: currentUser?.carriedOverLeave !== undefined ? Number(currentUser.carriedOverLeave) : 0,
+        performance: currentUser?.performance !== undefined ? Number(currentUser.performance) : 90,
+        projectsCount: currentUser?.projectsCount !== undefined ? Number(currentUser.projectsCount) : 1,
+        contractType: currentUser?.contractType || "",
+        contractDuration: currentUser?.contractDuration || "",
+        joinDate: currentUser?.joinDate || "",
+        directManager: currentUser?.directManager || "",
+        email: currentUser?.email || currentUser?.workEmail || "",
+        workEmail: currentUser?.workEmail || currentUser?.email || "",
+      };
+    }
+    onSave(safeData);
     onClose();
   };
 
@@ -167,11 +236,18 @@ export default function EditProfileWizardModal({
         {/* Header Modal */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
           <div>
-            <h3 className="text-base sm:text-lg font-bold text-slate-800">
-              Cập Nhật Hồ Sơ Nhân Sự
+            <h3 className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
+              {isSelfProfile ? "Cập Nhật Hồ Sơ Cá Nhân" : "Cập Nhật Hồ Sơ Nhân Sự"}
+              {isSelfProfile && (
+                <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[11px] font-semibold border border-blue-200/60">
+                  Tự khai báo
+                </span>
+              )}
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Chỉnh sửa thông tin từng phần tiện lợi, thông tin lưu trữ an toàn
+              {isSelfProfile
+                ? "Chỉnh sửa thông tin liên hệ, lý lịch cá nhân và trình độ học vấn"
+                : "Chỉnh sửa thông tin từng phần tiện lợi, thông tin lưu trữ an toàn"}
             </p>
           </div>
           <button
@@ -257,32 +333,73 @@ export default function EditProfileWizardModal({
                   />
                 </div>
 
+                {!isSelfProfile && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Mã nhân sự
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.code}
+                      onChange={(e) => handleChange("code", e.target.value)}
+                      placeholder="ĐH0050"
+                      className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-mono"
+                    />
+                  </div>
+                )}
+
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Mã nhân sự
+                  <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                    <span>Email công việc (Email chính) <span className="text-rose-500">*</span></span>
+                    {isSelfProfile && (
+                      <span className="text-[10px] text-slate-400 font-normal flex items-center gap-1">
+                        <Lock className="w-3 h-3 text-slate-400" /> Cố định tài khoản
+                      </span>
+                    )}
                   </label>
                   <input
-                    type="text"
-                    value={formData.code}
-                    onChange={(e) => handleChange("code", e.target.value)}
-                    placeholder="ĐH0050"
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-mono"
+                    type="email"
+                    required
+                    disabled={isSelfProfile}
+                    value={formData.email}
+                    onChange={(e) => handleChange("email", e.target.value)}
+                    placeholder="kien.nguyen@donghaiinvest.vn"
+                    className={`w-full px-3.5 py-2.5 rounded-xl text-sm border text-slate-800 transition-all font-medium ${
+                      isSelfProfile
+                        ? "bg-slate-100/80 border-slate-200 text-slate-500 cursor-not-allowed"
+                        : "bg-slate-50 border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20"
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
-                    <span>Mã chấm công (Máy chấm công)</span>
-                    <span className="text-[10px] text-blue-600 font-normal">Tự động khớp công</span>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Số điện thoại di động
                   </label>
                   <input
                     type="text"
-                    value={formData.attendanceCode || ""}
-                    onChange={(e) => handleChange("attendanceCode", e.target.value)}
-                    placeholder="VD: 1, 3, 6, 11..."
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-blue-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-mono font-bold"
+                    value={formData.phone}
+                    onChange={(e) => handleChange("phone", e.target.value)}
+                    placeholder="0912 345 678"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-medium"
                   />
                 </div>
+
+                {!isSelfProfile && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>Mã chấm công (Máy chấm công)</span>
+                      <span className="text-[10px] text-blue-600 font-normal">Tự động khớp công</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.attendanceCode || ""}
+                      onChange={(e) => handleChange("attendanceCode", e.target.value)}
+                      placeholder="VD: 1, 3, 6, 11..."
+                      className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-blue-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-mono font-bold"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -355,6 +472,32 @@ export default function EditProfileWizardModal({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Tôn giáo
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.religion}
+                    onChange={(e) => handleChange("religion", e.target.value)}
+                    placeholder="Không"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Nơi sinh
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.placeOfBirth}
+                    onChange={(e) => handleChange("placeOfBirth", e.target.value)}
+                    placeholder="Hà Nội"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Quê quán / Nguyên quán
                   </label>
                   <input
@@ -375,21 +518,135 @@ export default function EditProfileWizardModal({
               <div className="border-b border-slate-100 pb-2 mb-3">
                 <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                   <Briefcase className="w-4 h-4 text-[#1b365d]" />
-                  Thông tin vị trí & công tác
+                  {isSelfProfile ? "Thông tin vị trí & học vấn" : "Thông tin vị trí & công tác"}
                 </h4>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Ban / Phòng chuyên môn
-                  </label>
-                  <select
-                    value={formData.department}
-                    onChange={(e) => handleChange("department", e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-medium"
-                  >
-                    <option value="Ban Giám Đốc">Ban Giám Đốc</option>
+              {isSelfProfile ? (
+                /* CHẾ ĐỘ TỰ KHAI BÁO CỦA CÁN BỘ NHÂN VIÊN:
+                   Ẩn hoàn toàn mã chấm công, mã NV, quyền hệ thống, chức danh, lương, phép...
+                   Chỉ hiển thị tóm tắt vị trí do HCNS quản lý dưới dạng thẻ khóa, và cho phép sửa học vấn, địa điểm làm việc */
+                <div className="space-y-4">
+                  {/* Banner thông báo quyền quản lý HCNS */}
+                  <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200/80 flex items-start gap-3">
+                    <div className="p-2 bg-amber-100 rounded-xl text-amber-700 mt-0.5 flex-shrink-0">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h5 className="text-xs font-bold text-amber-950 uppercase tracking-wider">
+                        Thông tin tổ chức & phân quyền do HCNS quản lý
+                      </h5>
+                      <p className="text-xs text-amber-800/90 mt-1 leading-relaxed">
+                        Chức danh, ban phòng trực thuộc, mã máy chấm công, ngạch bậc lương, quỹ ngày phép và quyền hạn hệ thống được phân bổ tập trung bởi Ban Lãnh đạo & Ban Hành chính - Nhân sự. Cán bộ nhân viên không có quyền tự thay đổi các mục này.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Thông tin công tác hiện tại (Chỉ đọc) */}
+                  <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        Cơ cấu công tác hiện tại
+                      </h5>
+                      <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+                        <Lock className="w-3 h-3 text-slate-400" /> Cố định theo hồ sơ HCNS
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div className="p-3 bg-white rounded-xl border border-slate-200/70">
+                        <span className="text-slate-400 block font-medium">Ban / Khối chuyên môn:</span>
+                        <span className="font-bold text-slate-800 flex items-center gap-1.5 mt-0.5">
+                          <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                          {formData.department || "—"}
+                        </span>
+                      </div>
+
+                      <div className="p-3 bg-white rounded-xl border border-slate-200/70">
+                        <span className="text-slate-400 block font-medium">Chức vụ / Chức danh:</span>
+                        <span className="font-bold text-[#1b365d] flex items-center gap-1.5 mt-0.5">
+                          <Briefcase className="w-3.5 h-3.5 text-[#1b365d]" />
+                          {formData.position || "—"}
+                        </span>
+                      </div>
+
+                      <div className="p-3 bg-white rounded-xl border border-slate-200/70">
+                        <span className="text-slate-400 block font-medium">Cấp bậc công tác:</span>
+                        <span className="font-semibold text-slate-700 mt-0.5 block">
+                          {formData.workLevel || "—"}
+                        </span>
+                      </div>
+
+                      <div className="p-3 bg-white rounded-xl border border-slate-200/70">
+                        <span className="text-slate-400 block font-medium">Loại hợp đồng:</span>
+                        <span className="font-semibold text-slate-700 mt-0.5 block">
+                          {formData.contractType || "—"}
+                        </span>
+                      </div>
+
+                      <div className="p-3 bg-white rounded-xl border border-slate-200/70">
+                        <span className="text-slate-400 block font-medium">Quản lý trực tiếp:</span>
+                        <span className="font-semibold text-slate-700 mt-0.5 block">
+                          {formData.directManager || "—"}
+                        </span>
+                      </div>
+
+                      <div className="p-3 bg-white rounded-xl border border-slate-200/70">
+                        <span className="text-slate-400 block font-medium">Ngày tiếp nhận công tác:</span>
+                        <span className="font-semibold text-slate-700 mt-0.5 block">
+                          {formData.joinDate || "—"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mục tự khai báo trình độ học vấn & cơ sở công tác */}
+                  <div className="border-t border-slate-100 pt-3">
+                    <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
+                      Thông tin học vấn & công tác tự khai báo
+                    </h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          Trình độ học vấn / Bằng cấp chuyên môn
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.education}
+                          onChange={(e) => handleChange("education", e.target.value)}
+                          placeholder="Cử nhân, Kỹ sư, Thạc sĩ..."
+                          className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-medium"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          Địa điểm làm việc / Cơ sở
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.location}
+                          onChange={(e) => handleChange("location", e.target.value)}
+                          placeholder="Trụ sở chính Hà Nội"
+                          className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-medium"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* CHẾ ĐỘ QUẢN TRỊ VIÊN / HCNS QUẢN LÝ NHÂN SỰ TẠI /employees: Đầy đủ các trường nghiệp vụ */
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Ban / Phòng chuyên môn
+                    </label>
+                    <select
+                      value={formData.department}
+                      onChange={(e) => handleChange("department", e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-medium"
+                    >
+                      <option value="Ban Giám Đốc">Ban Giám Đốc</option>
                     {departments.map((dept, idx) => (
                       <option key={idx} value={dept.name}>
                         {dept.name}
@@ -495,7 +752,151 @@ export default function EditProfileWizardModal({
                     className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Trình độ học vấn
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.education}
+                    onChange={(e) => handleChange("education", e.target.value)}
+                    placeholder="Thạc sĩ Quản trị Kinh doanh (MBA)"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Thời hạn hợp đồng
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.contractDuration}
+                    onChange={(e) => handleChange("contractDuration", e.target.value)}
+                    placeholder="Vô thời hạn"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Lương cơ bản / Mức lương thỏa thuận
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.baseSalary}
+                    onChange={(e) => handleChange("baseSalary", e.target.value)}
+                    placeholder="Thỏa thuận Lãnh đạo cấp cao"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Cấp bậc phân quyền
+                  </label>
+                  <select
+                    value={formData.positionLevel}
+                    onChange={(e) => handleChange("positionLevel", e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-medium"
+                  >
+                    <option value="Ban Quản Trị">Ban Quản Trị</option>
+                    <option value="Trưởng Ban">Trưởng Ban</option>
+                    <option value="Nhân Viên">Nhân Viên</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Vai trò hệ thống (Quyền truy cập)
+                  </label>
+                  <select
+                    value={formData.role}
+                    onChange={(e) => handleChange("role", e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-medium"
+                  >
+                    <option value="ADMIN">ADMIN (Quản trị viên toàn hệ thống)</option>
+                    <option value="HCNS">HCNS (Quản lý Nhân sự & Chấm công)</option>
+                    <option value="LEADER">LEADER (Lãnh đạo / Trưởng ban)</option>
+                    <option value="USER">USER (Cán bộ nhân viên)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Trạng thái nhân sự
+                  </label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => handleChange("status", e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-medium"
+                  >
+                    <option value="active">Chính thức (Active)</option>
+                    <option value="probation">Thử việc (Probation)</option>
+                    <option value="invited">Đã gửi thư mời (Invited)</option>
+                    <option value="leave">Nghỉ thai sản / Nghỉ chế độ</option>
+                    <option value="inactive">Đã nghỉ việc (Inactive)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Quỹ phép năm (Số ngày)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="30"
+                    value={formData.annualLeaveQuota}
+                    onChange={(e) => handleChange("annualLeaveQuota", Number(e.target.value))}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Phép tồn năm trước (Số ngày)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="30"
+                    value={formData.carriedOverLeave}
+                    onChange={(e) => handleChange("carriedOverLeave", Number(e.target.value))}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Hiệu suất KPI (%)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.performance}
+                    onChange={(e) => handleChange("performance", Number(e.target.value))}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Dự án tham gia (Số lượng)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.projectsCount}
+                    onChange={(e) => handleChange("projectsCount", Number(e.target.value))}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-mono"
+                  />
+                </div>
               </div>
+              )}
             </div>
           )}
 
@@ -627,7 +1028,21 @@ export default function EditProfileWizardModal({
                 </h4>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Email công việc (Email chính) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => handleChange("email", e.target.value)}
+                    placeholder="kien.nguyen@donghaiinvest.vn"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-medium"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Số điện thoại di động
@@ -654,7 +1069,7 @@ export default function EditProfileWizardModal({
                   />
                 </div>
 
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-2 lg:col-span-3">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Địa chỉ thường trú (hộ khẩu)
                   </label>
@@ -667,7 +1082,7 @@ export default function EditProfileWizardModal({
                   />
                 </div>
 
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-2 lg:col-span-3">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Địa chỉ hiện tại / tạm trú
                   </label>
@@ -721,13 +1136,39 @@ export default function EditProfileWizardModal({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Người liên hệ khẩn cấp
+                    Người liên hệ khẩn cấp (Họ tên)
                   </label>
                   <input
                     type="text"
                     value={formData.emergencyContactName}
                     onChange={(e) => handleChange("emergencyContactName", e.target.value)}
-                    placeholder="Nguyễn Văn Nam (Bố ruột) - 0903 219 888"
+                    placeholder="Nguyễn Văn Nam"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Số điện thoại khẩn cấp
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.emergencyContactPhone}
+                    onChange={(e) => handleChange("emergencyContactPhone", e.target.value)}
+                    placeholder="0903 219 888"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Mối quan hệ khẩn cấp
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.emergencyRelationship}
+                    onChange={(e) => handleChange("emergencyRelationship", e.target.value)}
+                    placeholder="Bố ruột / Vợ / Chồng / Người thân"
                     className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all"
                   />
                 </div>

@@ -67,6 +67,33 @@ export default function LeavePage() {
     };
   }, [currentEmployee]);
 
+  // Kiểm tra Trưởng phòng HCNS dựa trên chức danh
+  const isHeadOfHR = useMemo(() => {
+    const emp = currentEmployee || currentUser;
+    if (!emp) return false;
+    const dept = (emp.department || "").toLowerCase();
+    const pos = (emp.position || "").toLowerCase();
+    const level = (emp.positionLevel || "").toLowerCase();
+    const role = (emp.role || "").toUpperCase();
+
+    if (role === "ADMIN") return true;
+
+    const isHRDept =
+      dept.includes("nhân sự") ||
+      dept.includes("hcns") ||
+      dept.includes("hành chính") ||
+      dept.includes("tổ chức");
+
+    const isLeaderTitle =
+      pos.includes("trưởng") ||
+      pos.includes("giám đốc") ||
+      pos.includes("phụ trách") ||
+      level.includes("trưởng") ||
+      level.includes("quản trị");
+
+    return isHRDept && isLeaderTitle;
+  }, [currentUser, currentEmployee]);
+
   // Fetch leave requests from backend
   const fetchLeaves = useCallback(async () => {
     setLoading(true);
@@ -137,7 +164,13 @@ export default function LeavePage() {
       const created = await res.json();
       setLeaves([created, ...leaves]);
       setIsCreateModalOpen(false);
-      showToast(`Đã gửi đơn xin nghỉ phép thành công! Đang chuyển phê duyệt.`);
+      if (created.status === "APPROVED") {
+        showToast("Đơn nghỉ phép của Trưởng phòng HCNS đã được TỰ ĐỘNG DUYỆT ngay lập tức!");
+      } else if (created.status === "PENDING_HR") {
+        showToast("Đơn nghỉ phép đã được chuyển thẳng tới Trưởng phòng HCNS phê duyệt!");
+      } else {
+        showToast("Đã gửi đơn xin nghỉ phép thành công! Đang chờ Trưởng phòng duyệt Cấp 1.");
+      }
       await loadData();
     } catch (err: any) {
       alert(err.message || "Có lỗi xảy ra khi tạo đơn nghỉ phép!");
@@ -172,8 +205,10 @@ export default function LeavePage() {
       setCancelModalItem(null);
       showToast(
         updated.status === "CANCELLED"
-          ? "Đã hủy đơn thành công!"
-          : "Đã gửi đề xuất hủy đơn tới Ban HCNS để hoàn lại ngày phép!"
+          ? (item.status === "APPROVED"
+              ? "Trưởng phòng HCNS đã tự hủy đơn thành công và hoàn lại ngày phép vào quỹ!"
+              : "Đã hủy đơn thành công!")
+          : "Đã gửi đề xuất hủy đơn tới Trưởng phòng HCNS để hoàn lại ngày phép!"
       );
       await loadData();
     } catch (err: any) {
@@ -506,16 +541,16 @@ export default function LeavePage() {
                             </button>
                           )}
 
-                          {/* Đã duyệt -> Đề xuất hủy */}
+                          {/* Đã duyệt -> Đề xuất hủy hoặc Tự hủy (Trưởng phòng HCNS) */}
                           {l.status === "APPROVED" && (
                             <button
                               type="button"
                               disabled={actionLoading}
                               onClick={() => setCancelModalItem(l)}
                               className="px-3 py-1.5 rounded-lg text-amber-800 hover:bg-amber-50 border border-amber-300 text-xs font-semibold transition-all hover:shadow-2xs active:scale-95"
-                              title="Gửi đề xuất hủy đơn tới HCNS"
+                              title={isHeadOfHR ? "Trưởng phòng HCNS tự hủy đơn và hoàn lại ngày phép" : "Gửi đề xuất hủy đơn tới Trưởng phòng HCNS"}
                             >
-                              Đề xuất hủy
+                              {isHeadOfHR ? "Hủy đơn & Hoàn phép" : "Đề xuất hủy"}
                             </button>
                           )}
 
@@ -553,6 +588,7 @@ export default function LeavePage() {
         item={cancelModalItem}
         onClose={() => setCancelModalItem(null)}
         actionLoading={actionLoading}
+        isHeadOfHR={isHeadOfHR}
         onConfirmCancel={handleCancelRequest}
       />
     </div>

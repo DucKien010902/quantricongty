@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Home,
   UserCircle,
@@ -20,6 +20,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useApp } from "@/app/context/AppContext";
 import { getUserDisplayName, getUserPosition, getUserSystemRole } from "@/app/utils/user";
+import { usePermission } from "@/app/hooks/usePermission";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -31,11 +32,94 @@ export default function Sidebar() {
     isSidebarCollapsed,
   } = useApp();
 
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState<number>(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchPending = async () => {
+      try {
+        const res = await fetch("http://localhost:5002/api/approvals");
+        if (!res.ok) return;
+        const approvals = await res.json();
+        if (!Array.isArray(approvals) || !isMounted) return;
+
+        const role = (currentUser?.role || "").toUpperCase();
+        const dept = (currentUser?.department || "").toLowerCase();
+        const pos = (currentUser?.position || "").toLowerCase();
+        const level = (currentUser?.positionLevel || "").toLowerCase();
+        const code = currentUser?.code || "";
+
+        const isHRDept =
+          dept.includes("nhân sự") ||
+          dept.includes("hcns") ||
+          dept.includes("hành chính") ||
+          dept.includes("tổ chức");
+
+        const isLeaderTitle =
+          pos.includes("trưởng") ||
+          pos.includes("giám đốc") ||
+          pos.includes("phụ trách") ||
+          level.includes("trưởng") ||
+          level.includes("quản trị");
+
+        const isHeadOfHR = role === "ADMIN" || (isHRDept && isLeaderTitle);
+        const isDepartmentLeader = isLeaderTitle || role === "LEADER" || role === "MANAGER";
+
+        if (!isDepartmentLeader && !isHeadOfHR) {
+          setPendingApprovalsCount(0);
+          return;
+        }
+
+        // Đơn đang chờ mà người này có thẩm quyền duyệt
+        const count = approvals.filter((item: any) => {
+          // 1. Không tính đơn do chính mình tạo
+          const isMine =
+            (item.requesterCode && (item.requesterCode === code || item.requesterCode === currentUser?.id)) ||
+            (item.requesterName && item.requesterName === currentUser?.name);
+          if (isMine) return false;
+
+          // 2. Nếu là Trưởng phòng HCNS:
+          // Tính các đơn chờ HCNS duyệt (PENDING_HR) và các đơn đề nghị hủy (REQUEST_CANCEL)
+          if (isHeadOfHR) {
+            return item.status === "PENDING_HR" || item.status === "REQUEST_CANCEL";
+          }
+
+          // 3. Nếu là Trưởng ban chuyên môn khác (như Ban CNTT):
+          // Chỉ tính các đơn thuộc ban mình VÀ đang ở trạng thái PENDING_LEADER (chờ Cấp 1)
+          if (isDepartmentLeader) {
+            return (item.department || "").toLowerCase() === dept && item.status === "PENDING_LEADER";
+          }
+
+          return false;
+        }).length;
+
+        setPendingApprovalsCount(count);
+      } catch {
+        // ignore
+      }
+    };
+
+    fetchPending();
+    const timer = setInterval(fetchPending, 10000);
+    const handleApprovalChanged = () => fetchPending();
+    window.addEventListener("approval-changed", handleApprovalChanged);
+
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+      window.removeEventListener("approval-changed", handleApprovalChanged);
+    };
+  }, [currentUser]);
+
+  const { can } = usePermission();
+  const canViewDashboard = can("dashboard.view");
+  const canViewEmployees = can("employees.view");
+
   const navGroups = [
     {
       title: "Bạn",
       items: [
-        { href: "/", label: "Trang chủ", icon: Home },
+        ...(canViewDashboard ? [{ href: "/", label: "Trang chủ", icon: Home }] : []),
         { href: "/profile", label: "Trang cá nhân", icon: UserCircle },
         { href: "/calendar", label: "Lịch", icon: Calendar },
       ],
@@ -43,7 +127,7 @@ export default function Sidebar() {
     {
       title: "Công ty",
       items: [
-        { href: "/employees", label: "Quản lý nhân viên", icon: Users },
+        ...(canViewEmployees ? [{ href: "/employees", label: "Quản lý nhân viên", icon: Users }] : []),
         { href: "/departments", label: "Ban / Phòng", icon: Building2 },
         { href: "/documents", label: "Quản lý tài liệu", icon: FileText },
         { href: "/leave-management", label: "Quản lý phép nhân viên", icon: CalendarCheck },
@@ -54,7 +138,12 @@ export default function Sidebar() {
       items: [
         { href: "/attendance", label: "Chấm công - Thời gian làm việc", icon: CalendarCheck },
         { href: "/leave", label: "Xin nghỉ phép", icon: Clock },
-        { href: "/approvals", label: "Phê duyệt", icon: ClipboardCheck, badge: "5" },
+        {
+          href: "/approvals",
+          label: "Phê duyệt",
+          icon: ClipboardCheck,
+          badge: pendingApprovalsCount > 0 ? String(pendingApprovalsCount) : undefined,
+        },
       ],
     },
     {
@@ -85,7 +174,7 @@ export default function Sidebar() {
     >
       {/* Logo + Tên công ty chuẩn ban đầu */}
       <div className="h-[64px] px-5 flex items-center border-b border-slate-200 bg-[#e9eef4]">
-        <Link href="/" className="flex items-center gap-3 min-w-0 flex-1">
+        <Link href={canViewDashboard ? "/" : "/attendance"} className="flex items-center gap-3 min-w-0 flex-1">
           <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 p-1 flex items-center justify-center flex-shrink-0 shadow-xs">
             <Image
               src="/donghai-logo.png"

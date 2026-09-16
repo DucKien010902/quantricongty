@@ -10,6 +10,13 @@ export class Holiday {
 
   @Prop({ required: true })
   name: string; // Tên ngày nghỉ (VD: Quốc Khánh 2/9, Tết Dương Lịch...)
+
+  @Prop({ default: 'le_tet' })
+  type?: string;
+
+  @Prop({ default: true })
+  isPaid?: boolean;
 }
 
 export const HolidaySchema = SchemaFactory.createForClass(Holiday);
+

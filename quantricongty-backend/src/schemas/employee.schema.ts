@@ -5,6 +5,7 @@ export type EmployeeDocument = Employee & Document;
 
 export enum EmployeeRole {
   ADMIN = 'ADMIN',
+  HCNS = 'HCNS',
   LEADER = 'LEADER',
   USER = 'USER',
   CHAIRMAN = 'CHAIRMAN',

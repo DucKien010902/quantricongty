@@ -50,15 +50,16 @@ export class AuthService {
     const companyName = company?.name || 'Công ty Cổ phần Đầu tư Đông Hải';
 
     const user = {
+      ...(employee ? employee.toObject() : {}),
       id: employee?.code || (isAdminEmail ? 'DHI-001' : `NV-${Math.floor(100 + Math.random() * 900)}`),
-      name: employee?.name || (isAdminEmail ? 'Nguyễn Đức Kiên' : cleanEmail.split('@')[0]),
+      code: employee?.code || (isAdminEmail ? 'DHI-001' : `NV-${Math.floor(100 + Math.random() * 900)}`),
+      name: employee?.name || cleanEmail.split('@')[0],
       email: cleanEmail,
-      avatar: employee?.avatar || (isAdminEmail
-        ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'
-        : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'),
+      avatar: employee?.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
       role: employee?.role || 'ADMIN',
-      position: employee?.position || (isAdminEmail ? 'Chủ tịch HĐQT & CEO' : 'Cán bộ nhân sự'),
+      position: employee?.position || 'Cán bộ nhân viên',
       department: employee?.department || 'Ban Giám Đốc',
+      attendanceCode: employee?.attendanceCode || '',
       company: companyName,
     };
 
@@ -145,15 +146,16 @@ export class AuthService {
     }
 
     const user = {
+      ...(employee ? employee.toObject() : {}),
       id: employee?.code || (isAdminEmail ? 'DHI-001' : `NV-${Math.floor(100 + Math.random() * 900)}`),
-      name: employee?.name || (isAdminEmail ? 'Nguyễn Đức Kiên' : cleanEmail.split('@')[0]),
+      code: employee?.code || (isAdminEmail ? 'DHI-001' : `NV-${Math.floor(100 + Math.random() * 900)}`),
+      name: employee?.name || cleanEmail.split('@')[0],
       email: cleanEmail,
-      avatar: employee?.avatar || (isAdminEmail
-        ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'
-        : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'),
+      avatar: employee?.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
       role: employee?.role || 'ADMIN',
-      position: employee?.position || (isAdminEmail ? 'Chủ tịch HĐQT & CEO' : 'Cán bộ nhân sự'),
+      position: employee?.position || 'Cán bộ nhân viên',
       department: employee?.department || 'Ban Giám Đốc',
+      attendanceCode: employee?.attendanceCode || '',
       company: companyName,
     };
 
@@ -185,22 +187,21 @@ export class AuthService {
 
     if (employee) {
       employee.status = 'active';
-      if (profile.picture && (!employee.avatar || employee.avatar.includes('unsplash'))) {
-        employee.avatar = profile.picture;
-      }
+      // Không ghi đè avatar từ ảnh Google cá nhân của người dùng
       await employee.save();
     }
 
     const user = {
+      ...(employee ? employee.toObject() : {}),
       id: employee?.code || (isAdminEmail ? 'DHI-001' : `NV-${Math.floor(100 + Math.random() * 900)}`),
-      name: employee?.name || profile.name || (isAdminEmail ? 'Nguyễn Đức Kiên' : cleanEmail.split('@')[0]),
+      code: employee?.code || (isAdminEmail ? 'DHI-001' : `NV-${Math.floor(100 + Math.random() * 900)}`),
+      name: employee?.name || profile.name || cleanEmail.split('@')[0],
       email: cleanEmail,
-      avatar: profile.picture || employee?.avatar || (isAdminEmail
-        ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'
-        : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'),
+      avatar: employee?.avatar || '/avatar-kien.png',
       role: employee?.role || 'ADMIN',
-      position: employee?.position || (isAdminEmail ? 'Chủ tịch HĐQT & CEO' : 'Cán bộ nhân sự'),
+      position: employee?.position || 'Cán bộ nhân viên',
       department: employee?.department || 'Ban Giám Đốc',
+      attendanceCode: employee?.attendanceCode || '',
       company: companyName,
     };
 

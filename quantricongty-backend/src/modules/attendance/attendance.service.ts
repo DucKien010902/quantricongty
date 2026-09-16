@@ -170,6 +170,7 @@ export class AttendanceService {
     dateStr: string,
     dayLogs: AttendanceLog[],
     holidayMap: Map<string, string>,
+    config?: any,
   ): Promise<Partial<DailyAttendance>> {
     const d = new Date(dateStr);
     const dayOfWeek = d.getDay(); // 0: CN, 1: T2, ..., 6: T7
@@ -192,14 +193,19 @@ export class AttendanceService {
         workTimeText: '0h',
         missingMinutes: 0,
         overtimeMinutes: 0,
-        workCredit: 0.0,
+        workCredit: 1.0,
         note: holidayMap.get(dateStr) || 'Nghỉ Lễ',
       };
     }
 
-    // 2. Weekend Check (Thứ 7 = 6, CN = 0)
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-    if (isWeekend && dayLogs.length === 0) {
+    // 2. Weekly Off-Days Check (Mặc định: 0=CN, 6=T7)
+    const offDayNumbers = (config?.weeklyOffDays ?? '0,6')
+      .split(',')
+      .map((s: string) => parseInt(s.trim(), 10))
+      .filter((n: number) => !isNaN(n));
+    const isWeeklyOff = offDayNumbers.includes(dayOfWeek);
+
+    if (isWeeklyOff && dayLogs.length === 0) {
       return {
         userId,
         name,
@@ -215,13 +221,29 @@ export class AttendanceService {
         missingMinutes: 0,
         overtimeMinutes: 0,
         workCredit: 0.0,
-        note: 'Nghỉ cuối tuần',
+        note: 'Nghỉ hàng tuần',
       };
     }
+
 
     // 3. Punch count evaluation
     const sortedLogs = [...dayLogs].sort((a, b) => a.time.localeCompare(b.time));
     const punchCount = sortedLogs.length;
+
+    // Parse dynamic shift parameters from config
+    const shiftInStr = config?.shiftTimeIn || '08:00';
+    const shiftOutStr = config?.shiftTimeOut || '17:00';
+    const standardInSec = this.timeToSeconds(shiftInStr);
+    const standardOutSec = this.timeToSeconds(shiftOutStr);
+    const lunchBreakHours = config?.lunchBreakHours ?? 1.0;
+    const lunchSec = Math.round(lunchBreakHours * 3600);
+    const workRequiredHours = config?.workRequiredHours ?? 8.0;
+    const workRequiredSec = Math.round(workRequiredHours * 3600);
+    const maxLateFlexMinutes = config?.maxLateFlexMinutes ?? 60; // Tối đa muộn 60p được bù giờ
+    const flexLimitSec = standardInSec + maxLateFlexMinutes * 60;
+    const minHoursFullDay = config?.minHoursFullDay ?? 8.0;
+    const minHoursHalfDay = config?.minHoursHalfDay ?? 4.0;
+    const lunchStartSec = this.timeToSeconds(config?.lunchTimeStart || '12:00');
 
     if (punchCount === 0) {
       return {
@@ -236,7 +258,7 @@ export class AttendanceService {
         status: DailyStatus.MISS,
         workHours: 0,
         workTimeText: '0h',
-        missingMinutes: 480, // 8h
+        missingMinutes: Math.round(workRequiredHours * 60),
         overtimeMinutes: 0,
         workCredit: 0.0,
         note: 'Vắng mặt',
@@ -246,9 +268,8 @@ export class AttendanceService {
     if (punchCount === 1) {
       const punchTime = sortedLogs[0].time;
       const punchSec = this.timeToSeconds(punchTime);
-      const noonSec = 12 * 3600;
 
-      if (punchSec < noonSec) {
+      if (punchSec < lunchStartSec) {
         // Quên quẹt ra
         return {
           userId,
@@ -262,7 +283,7 @@ export class AttendanceService {
           status: DailyStatus.THIEU_GIO_RA,
           workHours: 0,
           workTimeText: '0h',
-          missingMinutes: 240,
+          missingMinutes: Math.round(workRequiredHours * 30),
           overtimeMinutes: 0,
           workCredit: 0.0,
           note: 'Quên quẹt ra',
@@ -281,7 +302,7 @@ export class AttendanceService {
           status: DailyStatus.THIEU_GIO_VAO,
           workHours: 0,
           workTimeText: '0h',
-          missingMinutes: 240,
+          missingMinutes: Math.round(workRequiredHours * 30),
           overtimeMinutes: 0,
           workCredit: 0.0,
           note: 'Quên quẹt vào',
@@ -296,16 +317,11 @@ export class AttendanceService {
     const lastOutSec = this.timeToSeconds(lastOut);
 
     const spanSec = Math.max(0, lastOutSec - firstInSec);
-    const lunchSec = 3600; // 1h lunch
     const workSec = Math.max(0, spanSec - lunchSec);
     const workHours = Math.round((workSec / 3600) * 10) / 10;
     const workH = Math.floor(workSec / 3600);
     const workM = Math.floor((workSec % 3600) / 60);
     const workTimeText = workSec > 0 ? `${workH}h ${String(workM).padStart(2, '0')}p` : '0h';
-
-    const flexLimitSec = 9 * 3600; // 09:00:00
-    const standardInSec = 8 * 3600; // 08:00:00
-    const standardOutSec = 17 * 3600; // 17:00:00
 
     let status = DailyStatus.DU_CONG;
     let workCredit = 1.0;
@@ -314,23 +330,25 @@ export class AttendanceService {
     let note = 'Đủ công';
 
     if (firstInSec <= flexLimitSec) {
-      // Trường hợp A: Vào <= 09:00
+      // Trường hợp A: Vào trong khoảng cho phép bù giờ linh hoạt (<= flexLimitSec, ví dụ 09:00)
       let requiredOutSec = standardOutSec;
       if (firstInSec > standardInSec) {
-        // 08:00 < firstIn <= 09:00 -> Cần ở lại đến firstIn + 9 tiếng
-        requiredOutSec = firstInSec + 9 * 3600;
+        // Vào sau giờ chuẩn -> Cần ở lại bù đủ số giờ làm việc + nghỉ trưa
+        requiredOutSec = firstInSec + workRequiredSec + lunchSec;
       }
 
       if (lastOutSec < standardOutSec) {
-        status = DailyStatus.THIEU_PHUT;
-        workCredit = 0.0;
+        // Về sớm trước giờ ca chuẩn
         missingMinutes = Math.ceil((requiredOutSec - lastOutSec) / 60);
-        note = `Về sớm ${missingMinutes} phút (trước 17:00)`;
+        status = DailyStatus.THIEU_PHUT;
+        workCredit = workHours >= minHoursHalfDay ? 0.5 : 0.0;
+        note = `Về sớm ${missingMinutes} phút (trước ${shiftOutStr})${workCredit === 0.5 ? ' - 0.5 công' : ''}`;
       } else if (lastOutSec < requiredOutSec) {
-        status = DailyStatus.THIEU_PHUT;
-        workCredit = 0.0;
+        // Về sau giờ ca chuẩn nhưng chưa bù đủ giờ làm
         missingMinutes = Math.ceil((requiredOutSec - lastOutSec) / 60);
-        note = `Thiếu ${missingMinutes} phút (chưa bù đủ 8h)`;
+        status = DailyStatus.THIEU_PHUT;
+        workCredit = workHours >= minHoursHalfDay ? 0.5 : 0.0;
+        note = `Thiếu ${missingMinutes} phút (chưa bù đủ ${workRequiredHours}h)${workCredit === 0.5 ? ' - 0.5 công' : ''}`;
       } else {
         // Đủ công
         status = DailyStatus.DU_CONG;
@@ -347,18 +365,22 @@ export class AttendanceService {
         }
       }
     } else {
-      // Trường hợp B: Vào > 09:00 (Không được bù giờ linh hoạt)
+      // Trường hợp B: Vào quá muộn (sau flexLimitSec, ví dụ sau 9h)
       const lateMin = Math.ceil((firstInSec - flexLimitSec) / 60);
-      const req18Sec = 18 * 3600; // 09:00 + 9h
+      const reqOutAfterLate = flexLimitSec + workRequiredSec + lunchSec;
       let earlyMin = 0;
-      if (lastOutSec < req18Sec) {
-        earlyMin = Math.ceil((req18Sec - lastOutSec) / 60);
+      if (lastOutSec < reqOutAfterLate) {
+        earlyMin = Math.ceil((reqOutAfterLate - lastOutSec) / 60);
       }
-      status = DailyStatus.THIEU_PHUT;
-      workCredit = 0.0;
       missingMinutes = lateMin + earlyMin;
-      note = `Vào muộn sau 9h (${lateMin}p)${earlyMin > 0 ? ` + về sớm (${earlyMin}p)` : ''}`;
+      status = DailyStatus.THIEU_PHUT;
+      workCredit = workHours >= minHoursHalfDay ? 0.5 : 0.0;
+      const flexH = Math.floor(flexLimitSec / 3600);
+      const flexM = Math.floor((flexLimitSec % 3600) / 60);
+      const flexLimitStr = flexM > 0 ? `${flexH}h${String(flexM).padStart(2, '0')}` : `${flexH}h`;
+      note = `Vào muộn sau ${flexLimitStr} (${lateMin}p)${earlyMin > 0 ? ` + về sớm (${earlyMin}p)` : ''}${workCredit === 0.5 ? ' - 0.5 công' : ''}`;
     }
+
 
     return {
       userId,
@@ -398,6 +420,8 @@ export class AttendanceService {
       (e: any) => e.attendanceCode && String(e.attendanceCode).trim() !== ''
     );
 
+    const config = await this.getAttendanceConfig();
+
     for (const dateStr of dates) {
       // Clean up records for users who have no attendanceCode
       await this.dailyModel.deleteMany({
@@ -431,6 +455,7 @@ export class AttendanceService {
           dateStr,
           userLogs,
           holidayMap,
+          config,
         );
 
         await this.dailyModel.updateOne(
@@ -440,6 +465,7 @@ export class AttendanceService {
         );
       }
     }
+
   }
 
   /**
@@ -794,6 +820,8 @@ export class AttendanceService {
 
   /**
    * Query Tab 1: Daily Attendance records with filters
+   * - Chỉ hiện dữ liệu tới ngày hiện muộn nhất được kéo về (không hiện ngày tương lai)
+   * - Tự động bổ sung các ngày Thứ 7, Chủ Nhật (Nghỉ cuối tuần) để bảng liền mạch không bị đứt ngày
    */
   async getDailyAttendance(month?: string, userId?: string, department?: string): Promise<any[]> {
     await this.autoSyncMappedEmployees();
@@ -805,8 +833,40 @@ export class AttendanceService {
     );
     const validCodes = targetEmployees.map((e: any) => e.code);
 
+    // 1. Xác định ngày muộn nhất có dữ liệu (hoặc ngày hôm nay)
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const currentMonthStr = `${yyyy}-${mm}`;
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+
+    let maxDateForMonth = '';
+    if (targetMonth < currentMonthStr) {
+      const [y, m] = targetMonth.split('-').map(Number);
+      const lastDay = new Date(y, m, 0).getDate();
+      maxDateForMonth = `${targetMonth}-${String(lastDay).padStart(2, '0')}`;
+    } else if (targetMonth === currentMonthStr) {
+      const latestLog = await this.logModel
+        .findOne({ date: { $regex: `^${targetMonth}` } })
+        .sort({ date: -1 })
+        .lean();
+      const latestDaily = await this.dailyModel
+        .findOne({ date: { $regex: `^${targetMonth}` }, punchCount: { $gt: 0 } })
+        .sort({ date: -1 })
+        .lean();
+
+      const candidateDates = [latestLog?.date, latestDaily?.date, todayStr].filter(Boolean) as string[];
+      candidateDates.sort().reverse();
+      const candidate = candidateDates[0] || todayStr;
+      // Không vượt quá ngày hôm nay nếu kéo log tương lai
+      maxDateForMonth = candidate <= todayStr ? candidate : todayStr;
+    } else {
+      return [];
+    }
+
     const filter: any = {};
-    filter.date = { $regex: `^${targetMonth}` };
+    filter.date = { $regex: `^${targetMonth}`, $lte: maxDateForMonth };
     filter.userId = { $in: validCodes };
 
     if (userId && userId !== 'ALL') {
@@ -816,7 +876,137 @@ export class AttendanceService {
       filter.department = department;
     }
 
-    return this.dailyModel.find(filter).sort({ date: -1, userId: 1 }).lean();
+    const dbRecords = await this.dailyModel.find(filter).lean();
+
+    // 2. Tra cứu ngày lễ / sự kiện được thiết lập trong Cài Đặt
+    const holidays = await this.holidayModel
+      .find({ date: { $regex: `^${targetMonth}` } })
+      .lean();
+    const holidayMap = new Map<string, any>();
+    for (const h of holidays) {
+      holidayMap.set(h.date, h);
+    }
+
+    // Lọc danh sách nhân sự cần tổng hợp
+    let empsToProcess = targetEmployees;
+    if (userId && userId !== 'ALL') {
+      empsToProcess = empsToProcess.filter((e: any) => e.code === userId);
+    }
+    if (department && department !== 'ALL') {
+      empsToProcess = empsToProcess.filter((e: any) => e.department === department);
+    }
+
+    const recordMap = new Map<string, any>();
+    for (const r of dbRecords) {
+      recordMap.set(`${r.userId}_${r.date}`, r);
+    }
+
+    const weekdays = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+    const [yearNum, monthNum] = targetMonth.split('-').map(Number);
+    const maxDayNum = parseInt(maxDateForMonth.split('-')[2], 10);
+
+    const finalRows: any[] = [];
+
+    for (let d = 1; d <= maxDayNum; d++) {
+      const dayStr = String(d).padStart(2, '0');
+      const dateStr = `${targetMonth}-${dayStr}`;
+      const dateObj = new Date(yearNum, monthNum - 1, d);
+      const dow = dateObj.getDay();
+      const weekdayName = weekdays[dow];
+      const isWeekend = dow === 0 || dow === 6;
+      const holiday = holidayMap.get(dateStr);
+
+      for (const emp of empsToProcess) {
+        const key = `${emp.code}_${dateStr}`;
+        const existing = recordMap.get(key);
+
+        if (existing) {
+          // Nếu ngày này được cài đặt là ngày nghỉ lễ nhưng bản ghi cũ chưa cập nhật thành NGHI_LE
+          if (holiday && existing.status !== DailyStatus.NGHI_LE && (!existing.punchCount || existing.punchCount === 0)) {
+            finalRows.push({
+              ...existing,
+              status: DailyStatus.NGHI_LE,
+              workCredit: 1.0,
+              missingMinutes: 0,
+              note: holiday.name || 'Nghỉ Lễ Quốc Khánh',
+              weekday: existing.weekday || weekdayName,
+            });
+          } else {
+            finalRows.push({
+              ...existing,
+              weekday: existing.weekday || weekdayName,
+            });
+          }
+        } else if (holiday) {
+          // Ngày nghỉ Lễ/Tết được thiết lập trong Cài Đặt (Hưởng nguyên lương 1.0 công)
+          finalRows.push({
+            userId: emp.code,
+            name: emp.name,
+            department: emp.department || '',
+            date: dateStr,
+            weekday: weekdayName,
+            firstIn: '',
+            lastOut: '',
+            punchCount: 0,
+            status: DailyStatus.NGHI_LE,
+            workHours: 0,
+            workTimeText: '0h',
+            missingMinutes: 0,
+            overtimeMinutes: 0,
+            workCredit: 1.0,
+            note: holiday.name || 'Nghỉ Lễ Quốc Khánh',
+          });
+        } else if (isWeekend) {
+          // Bổ sung dòng Thứ 7 / Chủ Nhật (Nghỉ cuối tuần) để không bị đứt ngày
+          finalRows.push({
+            userId: emp.code,
+            name: emp.name,
+            department: emp.department || '',
+            date: dateStr,
+            weekday: weekdayName,
+            firstIn: '',
+            lastOut: '',
+            punchCount: 0,
+            status: DailyStatus.CUOI_TUAN,
+            workHours: 0,
+            workTimeText: '0h',
+            missingMinutes: 0,
+            overtimeMinutes: 0,
+            workCredit: 0.0,
+            note: 'Nghỉ cuối tuần',
+          });
+        } else {
+          // Ngày trong tuần không có quẹt thẻ
+          finalRows.push({
+            userId: emp.code,
+            name: emp.name,
+            department: emp.department || '',
+            date: dateStr,
+            weekday: weekdayName,
+            firstIn: '',
+            lastOut: '',
+            punchCount: 0,
+            status: DailyStatus.MISS,
+            workHours: 0,
+            workTimeText: '0h',
+            missingMinutes: 480,
+            overtimeMinutes: 0,
+            workCredit: 0.0,
+            note: 'Vắng mặt',
+          });
+        }
+      }
+    }
+
+    // Sắp xếp ngày mới nhất lên đầu, tiếp đến là mã nhân viên
+    finalRows.sort((a, b) => {
+      if (a.date !== b.date) {
+        return b.date.localeCompare(a.date);
+      }
+      return (a.userId || '').localeCompare(b.userId || '');
+    });
+
+    return finalRows;
   }
 
   /**
@@ -831,7 +1021,14 @@ export class AttendanceService {
     const year = parseInt(yearStr, 10);
     const monthNum = parseInt(monthStr, 10);
 
-    // 1. Calculate standard working days in month
+    // 1. Fetch active shift and days off config
+    const config = await this.getAttendanceConfig();
+    const offDayNumbers = (config?.weeklyOffDays ?? '0,6')
+      .split(',')
+      .map((s: string) => parseInt(s.trim(), 10))
+      .filter((n: number) => !isNaN(n));
+
+    // Calculate standard working days in month
     const totalDays = new Date(year, monthNum, 0).getDate();
     const holidays = await this.holidayModel.find({ date: { $regex: `^${targetMonth}` } }).lean();
     const holidayDates = new Set(holidays.map((h) => h.date));
@@ -841,9 +1038,8 @@ export class AttendanceService {
       const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const d = new Date(dateStr);
       const dow = d.getDay();
-      // Weekend: 0 (Sun) or 6 (Sat)
-      const isWeekend = dow === 0 || dow === 6;
-      if (!isWeekend && !holidayDates.has(dateStr)) {
+      const isOffDay = offDayNumbers.includes(dow);
+      if (!isOffDay && !holidayDates.has(dateStr)) {
         standardDays++;
       }
     }
@@ -1201,13 +1397,60 @@ export class AttendanceService {
   }
 
   /**
-   * Holidays management
+   * Attendance Shift & Days Off Config
+   */
+  async getAttendanceConfig(): Promise<any> {
+    let config = await this.configModel.findOne().lean();
+    if (!config) {
+      config = await this.configModel.create({
+        shiftTimeIn: '08:00',
+        shiftTimeOut: '17:00',
+        lunchTimeStart: '12:00',
+        lunchTimeEnd: '13:00',
+        lunchBreakHours: 1.0,
+        workRequiredHours: 8.0,
+        maxLateFlexMinutes: 60,
+        graceMinutes: 15,
+        minHoursFullDay: 8.0,
+        minHoursHalfDay: 4.0,
+        flexLatestIn: '09:00',
+        weeklyOffDays: '0,6', // 0=Chủ Nhật, 6=Thứ Bảy
+      });
+    }
+    return config;
+
+  }
+
+  async saveAttendanceConfig(body: any): Promise<any> {
+    const config = await this.configModel.findOneAndUpdate(
+      {},
+      { $set: body },
+      { upsert: true, new: true },
+    );
+
+    // Tự động tính toán lại tất cả các ngày phát sinh dữ liệu chấm công theo cấu hình mới
+    try {
+      const dailyDates = await this.dailyModel.distinct('date');
+      const logDates = await this.logModel.distinct('date');
+      const allDates = Array.from(new Set([...dailyDates, ...logDates])).filter(Boolean);
+      if (allDates && allDates.length > 0) {
+        await this.recalculateDays(allDates);
+      }
+    } catch (e) {
+      this.logger.warn(`Could not recalculate days after saving config: ${e}`);
+    }
+
+    return config;
+  }
+
+  /**
+   * Holidays management (Ngày lễ & Ngày nghỉ riêng lẻ)
    */
   async getHolidays(): Promise<Holiday[]> {
     return this.holidayModel.find().sort({ date: 1 }).lean();
   }
 
-  async createHoliday(body: { date: string; name: string }): Promise<Holiday> {
+  async createHoliday(body: { date: string; name: string; type?: string; isPaid?: boolean }): Promise<Holiday> {
     const res = await this.holidayModel.findOneAndUpdate(
       { date: body.date },
       { $set: body },
@@ -1226,3 +1469,4 @@ export class AttendanceService {
     return { success: true };
   }
 }
+

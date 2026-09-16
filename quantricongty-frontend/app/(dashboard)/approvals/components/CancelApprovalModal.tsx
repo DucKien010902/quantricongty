@@ -8,6 +8,7 @@ interface CancelApprovalModalProps {
   item: ApprovalItem | null;
   onClose: () => void;
   actionLoading: boolean;
+  isHeadOfHR?: boolean;
   onConfirmCancel: (item: ApprovalItem, reason: string) => Promise<void>;
 }
 
@@ -15,6 +16,7 @@ export const CancelApprovalModal: React.FC<CancelApprovalModalProps> = ({
   item,
   onClose,
   actionLoading,
+  isHeadOfHR = false,
   onConfirmCancel,
 }) => {
   const [reason, setReason] = useState("");
@@ -41,8 +43,12 @@ export const CancelApprovalModal: React.FC<CancelApprovalModalProps> = ({
           <div className="flex items-center gap-2">
             <RotateCcw className="w-5 h-5 text-amber-200" />
             <div>
-              <h3 className="text-base font-bold">Đề Xuất Hủy Nghỉ Phép</h3>
-              <p className="text-xs text-amber-100">Gửi Trưởng ban HCNS để hoàn lại ngày phép</p>
+              <h3 className="text-base font-bold">
+                {isHeadOfHR ? "Trưởng phòng HCNS Tự Hủy Đơn" : "Đề Xuất Hủy Nghỉ Phép"}
+              </h3>
+              <p className="text-xs text-amber-100">
+                {isHeadOfHR ? "Hủy đơn và hoàn ngày phép tức thì" : "Gửi Trưởng ban HCNS để hoàn lại ngày phép"}
+              </p>
             </div>
           </div>
           <button
@@ -56,10 +62,10 @@ export const CancelApprovalModal: React.FC<CancelApprovalModalProps> = ({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
           <p className="text-slate-700 font-medium">
-            Bạn đang đề nghị hủy đơn <strong>"{item.title}"</strong> ({item.daysCount} ngày làm việc).
+            Bạn đang yêu cầu hủy đơn <strong>"{item.title}"</strong> ({item.daysCount} ngày làm việc).
           </p>
           <div>
-            <label className="block font-bold text-slate-700 mb-1.5">Lý do đề xuất hủy đơn *</label>
+            <label className="block font-bold text-slate-700 mb-1.5">Lý do hủy đơn *</label>
             <textarea
               rows={3}
               required
@@ -71,8 +77,15 @@ export const CancelApprovalModal: React.FC<CancelApprovalModalProps> = ({
           </div>
 
           <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-[11px] leading-relaxed">
-            Khi Ban HCNS chấp thuận hủy đơn, <strong>{item.daysCount} ngày phép</strong> sẽ được tự động
-            hoàn lại vào Quỹ phép năm của bạn và cập nhật lại bảng chấm công.
+            {isHeadOfHR ? (
+              <span>
+                Với cương vị <strong>Trưởng phòng HCNS</strong>, thao tác này sẽ <strong>hủy đơn trực tiếp ngay lập tức</strong>, đồng thời tự động hoàn lại <strong>{item.daysCount} ngày phép</strong> và khôi phục bảng chấm công.
+              </span>
+            ) : (
+              <span>
+                Khi Trưởng phòng HCNS chấp thuận hủy đơn, <strong>{item.daysCount} ngày phép</strong> sẽ được tự động hoàn lại vào Quỹ phép năm của bạn và cập nhật lại bảng chấm công.
+              </span>
+            )}
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-2">
@@ -88,7 +101,7 @@ export const CancelApprovalModal: React.FC<CancelApprovalModalProps> = ({
               disabled={actionLoading || !reason.trim()}
               className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-xs transition-colors"
             >
-              Gửi đề xuất hủy
+              {isHeadOfHR ? "Xác nhận tự hủy & hoàn phép" : "Gửi đề xuất hủy"}
             </button>
           </div>
         </form>

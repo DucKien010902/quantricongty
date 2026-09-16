@@ -39,7 +39,7 @@ export default function DepartmentsView({
       {/* Grid Danh Sách Ban / Phòng */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {displayDepartments.map((dept, idx) => {
-          // Tính số nhân sự trực thuộc ban này
+          // Tính số nhân sự trực thuộc ban này từ danh sách nhân viên thực tế
           const deptEmployees = employees.filter(
             (e) =>
               e.department?.toLowerCase() === dept.name?.toLowerCase() ||
@@ -48,16 +48,21 @@ export default function DepartmentsView({
           );
           const count = deptEmployees.length;
 
-          // Lấy tên trưởng ban
-          const manager =
-            dept.managerName ||
-            dept.manager ||
-            deptEmployees.find(
+          // Lấy tên người phụ trách ban từ nhân sự thực tế trong ban
+          let manager = "Chưa có";
+          if (count > 0) {
+            const leader = deptEmployees.find(
               (e) =>
+                e.position?.toLowerCase().includes("trưởng") ||
+                e.position?.toLowerCase().includes("lãnh đạo") ||
+                e.position?.toLowerCase().includes("giám đốc") ||
                 e.role?.toLowerCase().includes("trưởng") ||
-                e.role?.toLowerCase().includes("giám đốc")
-            )?.name ||
-            "Đang kiện toàn";
+                e.role?.toLowerCase().includes("giám đốc") ||
+                e.role === "LEADER" ||
+                e.role === "ADMIN"
+            );
+            manager = leader ? leader.name : "Chưa có";
+          }
 
           return (
             <div
@@ -75,7 +80,7 @@ export default function DepartmentsView({
                   </span>
                 </div>
 
-                {/* Tên ban (Đã bỏ phần mô tả chức năng theo yêu cầu) */}
+                {/* Tên ban */}
                 <div className="mt-5">
                   <h3 className="text-lg sm:text-xl font-bold text-slate-800 leading-snug group-hover:text-[#1b365d] transition-colors">
                     {dept.name}
@@ -89,7 +94,11 @@ export default function DepartmentsView({
                       <ShieldCheck className="w-4 h-4 text-slate-400" />
                       Phụ trách ban:
                     </span>
-                    <span className="font-bold text-slate-800">
+                    <span
+                      className={`font-bold ${
+                        count > 0 ? "text-slate-800" : "text-slate-400 font-normal italic"
+                      }`}
+                    >
                       {manager}
                     </span>
                   </div>
@@ -99,8 +108,14 @@ export default function DepartmentsView({
                       <Users className="w-4 h-4 text-slate-400" />
                       Quy mô quân số:
                     </span>
-                    <span className="font-bold text-[#1b365d] bg-blue-50/90 border border-blue-100/60 px-2.5 py-0.5 rounded-lg">
-                      {count > 0 ? `${count} cán bộ` : "Mới thành lập"}
+                    <span
+                      className={`font-bold px-2.5 py-0.5 rounded-lg border ${
+                        count > 0
+                          ? "text-[#1b365d] bg-blue-50/90 border-blue-100/60"
+                          : "text-slate-400 bg-slate-50 border-slate-200/80 font-normal italic"
+                      }`}
+                    >
+                      {count > 0 ? `${count} cán bộ` : "Chưa có"}
                     </span>
                   </div>
 

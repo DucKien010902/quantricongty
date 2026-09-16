@@ -13,8 +13,8 @@ export default function DepartmentsPage() {
     <DepartmentsView
       departments={departments}
       employees={employees}
-      onSelectDepartment={() => {
-        router.push("/employees");
+      onSelectDepartment={(deptName: string) => {
+        router.push(`/employees?dept=${encodeURIComponent(deptName)}`);
       }}
     />
   );

@@ -38,20 +38,54 @@ export default function ApprovalsPage() {
     );
   }, [currentUser, employees]);
 
-  // User authority
-  const isHRAdmin = useMemo(() => {
-    const role = currentUser?.role || currentEmployee?.role || "";
-    const dept = currentUser?.department || currentEmployee?.department || "";
-    const code = currentUser?.code || currentEmployee?.code || "";
-    return role === "ADMIN" || code === "DHI-001" || dept.includes("Nhân sự");
+  // Thẩm quyền dựa vào CHỨC DANH Trưởng phòng/Trưởng ban HCNS (không phải chỉ quyền hệ thống)
+  const isHeadOfHR = useMemo(() => {
+    const emp = currentEmployee || currentUser;
+    if (!emp) return false;
+    const dept = (emp.department || "").toLowerCase();
+    const pos = (emp.position || "").toLowerCase();
+    const level = (emp.positionLevel || "").toLowerCase();
+    const role = (emp.role || "").toUpperCase();
+
+    // Admin hệ thống có toàn quyền
+    if (role === "ADMIN") return true;
+
+    const isHRDept =
+      dept.includes("nhân sự") ||
+      dept.includes("hcns") ||
+      dept.includes("hành chính") ||
+      dept.includes("tổ chức");
+
+    const isLeaderTitle =
+      pos.includes("trưởng") ||
+      pos.includes("giám đốc") ||
+      pos.includes("phụ trách") ||
+      level.includes("trưởng") ||
+      level.includes("quản trị");
+
+    return isHRDept && isLeaderTitle;
   }, [currentUser, currentEmployee]);
 
-  const isLeader = useMemo(() => {
-    const role = currentUser?.role || currentEmployee?.role || "";
-    const level = currentEmployee?.positionLevel || "";
-    const pos = currentUser?.position || currentEmployee?.position || "";
-    return isHRAdmin || role === "LEADER" || level === "Trưởng Ban" || pos.includes("Trưởng");
-  }, [currentUser, currentEmployee, isHRAdmin]);
+  // Thẩm quyền Trưởng ban / Trưởng phòng chuyên môn
+  const isDepartmentLeader = useMemo(() => {
+    const emp = currentEmployee || currentUser;
+    if (!emp) return false;
+    const pos = (emp.position || "").toLowerCase();
+    const level = (emp.positionLevel || "").toLowerCase();
+    const role = (emp.role || "").toUpperCase();
+
+    const isLeaderTitle =
+      pos.includes("trưởng") ||
+      pos.includes("giám đốc") ||
+      pos.includes("phụ trách") ||
+      level.includes("trưởng") ||
+      level.includes("quản trị");
+
+    return isLeaderTitle || role === "LEADER" || role === "MANAGER";
+  }, [currentUser, currentEmployee]);
+
+  const isHRAdmin = isHeadOfHR;
+  const isLeader = isDepartmentLeader;
 
   // Fetch approvals from backend
   const fetchApprovals = useCallback(async () => {
@@ -86,8 +120,27 @@ export default function ApprovalsPage() {
   );
 
   const otherApprovals = useMemo(() => {
-    return approvals.filter((item) => !isMyRequest(item));
-  }, [approvals, isMyRequest]);
+    const userDept = currentEmployee?.department || currentUser?.department || "";
+    return approvals.filter((item) => {
+      // 1. Không hiển thị đơn của chính mình ở bảng phê duyệt cấp quản lý
+      if (isMyRequest(item)) return false;
+
+      // 2. Nếu là Trưởng phòng HCNS (hoặc Admin): Có thẩm quyền duyệt C2 cho toàn công ty
+      if (isHeadOfHR) {
+        return true;
+      }
+
+      // 3. Nếu là Trưởng phòng / Trưởng ban chuyên môn khác (ví dụ Ban CNTT):
+      // CHỈ ĐƯỢC XEM & DUYỆT đơn của nhân sự thuộc đúng ban mình quản lý!
+      if (isDepartmentLeader) {
+        return Boolean(userDept && item.department === userDept);
+      }
+
+      // 4. Nếu là nhân viên thông thường (không phải Leader, không phải Trưởng HCNS):
+      // Không có thẩm quyền duyệt đơn của người khác
+      return false;
+    });
+  }, [approvals, isMyRequest, isHeadOfHR, isDepartmentLeader, currentEmployee, currentUser]);
 
   // Stats
   const stats = useMemo(() => {
@@ -184,6 +237,9 @@ export default function ApprovalsPage() {
           : "Đã từ chối đơn phê duyệt."
       );
       await loadData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("approval-changed"));
+      }
     } catch (err: any) {
       alert(err.message || "Có lỗi xảy ra khi phê duyệt!");
     } finally {
@@ -222,6 +278,9 @@ export default function ApprovalsPage() {
           : "Đã từ chối đơn phê duyệt."
       );
       await loadData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("approval-changed"));
+      }
     } catch (err: any) {
       alert(err.message || "Có lỗi xảy ra khi phê duyệt!");
     } finally {
@@ -246,7 +305,7 @@ export default function ApprovalsPage() {
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.message || "Lỗi xử lý hủy đơn");
+        throw new Error(err.message || "Lỗi xử lý duyệt hủy đơn");
       }
 
       const updated = await res.json();
@@ -256,10 +315,13 @@ export default function ApprovalsPage() {
       }
       showToast(
         isApproved
-          ? "Đã chấp thuận hủy đơn! Hoàn trả ngày phép vào quỹ và khôi phục bảng chấm công."
-          : "Đã từ chối đề xuất hủy đơn."
+          ? "Đã chấp thuận hủy đơn và tự động hoàn lại quỹ phép cho nhân sự!"
+          : "Đã từ chối yêu cầu hủy đơn."
       );
       await loadData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("approval-changed"));
+      }
     } catch (err: any) {
       alert(err.message || "Có lỗi xảy ra khi xử lý đề xuất hủy!");
     } finally {
@@ -282,15 +344,15 @@ export default function ApprovalsPage() {
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-center">
-          {isHRAdmin ? (
+          {isHeadOfHR ? (
             <span className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-800 border border-indigo-200/80 shadow-2xs">
               <ShieldCheck className="w-4 h-4 text-indigo-600" />
-              <span>Quyền: Trưởng Ban HCNS (Cấp 2 - Duyệt chốt)</span>
+              <span>Chức danh: Trưởng Ban HCNS (Cấp 2 - Duyệt chốt toàn công ty)</span>
             </span>
-          ) : isLeader ? (
+          ) : isDepartmentLeader ? (
             <span className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200/80 shadow-2xs">
               <ShieldCheck className="w-4 h-4 text-amber-600" />
-              <span>Quyền: Trưởng Ban (Cấp 1 - Duyệt nội bộ ban)</span>
+              <span>Chức danh: Trưởng Ban ({currentEmployee?.department || currentUser?.department || 'Chuyên môn'}) - Duyệt Cấp 1</span>
             </span>
           ) : (
             <span className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
@@ -321,8 +383,9 @@ export default function ApprovalsPage() {
         loading={loading}
         currentUser={currentUser}
         currentEmployee={currentEmployee}
-        isHRAdmin={isHRAdmin}
-        isLeader={isLeader}
+        isHeadOfHR={isHeadOfHR}
+        isHRAdmin={isHeadOfHR}
+        isLeader={isDepartmentLeader}
         actionLoading={actionLoading}
         onInspect={(item) => {
           setInspectItem(item);
@@ -341,8 +404,9 @@ export default function ApprovalsPage() {
           approvalNote={approvalNote}
           onNoteChange={setApprovalNote}
           actionLoading={actionLoading}
-          isHRAdmin={isHRAdmin}
-          isLeader={isLeader}
+          isHeadOfHR={isHeadOfHR}
+          isHRAdmin={isHeadOfHR}
+          isLeader={isDepartmentLeader}
           currentUser={currentUser}
           currentEmployee={currentEmployee}
           onLeaderApprove={handleLeaderApprove}

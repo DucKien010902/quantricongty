@@ -25,6 +25,7 @@ interface EmployeeProfileViewProps {
   departments: DepartmentInfo[];
   onBack: () => void;
   onUpdateEmployee: (id: string, updated: any) => void;
+  canEdit?: boolean;
 }
 
 const PROFILE_TABS = [
@@ -43,6 +44,7 @@ export default function EmployeeProfileView({
   departments,
   onBack,
   onUpdateEmployee,
+  canEdit = true,
 }: EmployeeProfileViewProps) {
   const [activeTab, setActiveTab] = useState<string>("personal");
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
@@ -186,16 +188,18 @@ export default function EmployeeProfileView({
               />
             </div>
 
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                onClick={() => setIsEditModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1b365d] hover:bg-[#152a4a] text-white text-xs sm:text-sm font-semibold shadow-xs transition-all"
-              >
-                <Edit3 className="w-4 h-4" />
-                <span>Chỉnh sửa hồ sơ</span>
-              </button>
-            </div>
+            {canEdit && (
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1b365d] hover:bg-[#152a4a] text-white text-xs sm:text-sm font-semibold shadow-xs transition-all cursor-pointer"
+                >
+                  <Edit3 className="w-4 h-4" />
+                  <span>Chỉnh sửa hồ sơ</span>
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="mt-4 sm:mt-5 flex flex-wrap items-center gap-3">
@@ -203,14 +207,16 @@ export default function EmployeeProfileView({
               {displayName}
             </h1>
             {getStatusBadge()}
-            <button
-              type="button"
-              onClick={() => setIsEditModalOpen(true)}
-              title="Chỉnh sửa"
-              className="p-1.5 text-slate-400 hover:text-[#1b365d] hover:bg-slate-100 rounded-lg transition-colors"
-            >
-              <Edit3 className="w-4 h-4" />
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(true)}
+                title="Chỉnh sửa"
+                className="p-1.5 text-slate-400 hover:text-[#1b365d] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              >
+                <Edit3 className="w-4 h-4" />
+              </button>
+            )}
             <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-lg bg-slate-100 text-slate-600 border border-slate-200">
               {displayCode}
             </span>
@@ -356,6 +362,7 @@ export default function EmployeeProfileView({
             <InfoRow label="Quốc tịch" value={localEmp?.nationality || "Việt Nam"} />
             <InfoRow label="Dân tộc" value={localEmp?.ethnic || "Kinh"} />
             <InfoRow label="Tôn giáo" value={localEmp?.religion || "Không"} />
+            <InfoRow label="Nơi sinh" value={localEmp?.placeOfBirth} />
             <InfoRow label="Nguyên quán" value={localEmp?.hometown} />
           </div>
         </div>
@@ -438,8 +445,16 @@ export default function EmployeeProfileView({
             <InfoRow label="Email công việc" value={localEmp?.email} copyKey="emailContact" />
             <InfoRow label="Email cá nhân" value={localEmp?.personalEmail} />
             <InfoRow label="Địa chỉ thường trú" value={localEmp?.permanentAddress} />
-            <InfoRow label="Địa chỉ hiện tại / tạm trú" value={localEmp?.currentAddress} />
-            <InfoRow label="Người liên hệ khẩn cấp" value={localEmp?.emergencyContactName} />
+            <InfoRow
+              label="Người liên hệ khẩn cấp"
+              value={
+                localEmp?.emergencyContactName
+                  ? `${localEmp.emergencyContactName}${
+                      localEmp.emergencyRelationship ? ` (${localEmp.emergencyRelationship})` : ""
+                    }${localEmp.emergencyContactPhone ? ` - ${localEmp.emergencyContactPhone}` : ""}`
+                  : undefined
+              }
+            />
           </div>
         </div>
       )}
@@ -513,6 +528,7 @@ export default function EmployeeProfileView({
         currentUser={localEmp}
         departments={departments}
         onSave={handleSave}
+        isSelfProfile={false}
       />
     </div>
   );

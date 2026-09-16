@@ -19,7 +19,8 @@ interface ApprovalTableProps {
   loading: boolean;
   currentUser: any;
   currentEmployee: any;
-  isHRAdmin: boolean;
+  isHeadOfHR?: boolean;
+  isHRAdmin?: boolean;
   isLeader: boolean;
   actionLoading: boolean;
   onInspect: (item: ApprovalItem) => void;
@@ -33,7 +34,8 @@ export const ApprovalTable: React.FC<ApprovalTableProps> = ({
   loading,
   currentUser,
   currentEmployee,
-  isHRAdmin,
+  isHeadOfHR = false,
+  isHRAdmin = false,
   isLeader,
   actionLoading,
   onInspect,
@@ -41,12 +43,13 @@ export const ApprovalTable: React.FC<ApprovalTableProps> = ({
   onHRApprove,
   onHRApproveCancel,
 }) => {
+  const canApproveHR = isHeadOfHR || isHRAdmin;
   const userDept = currentEmployee?.department || currentUser?.department || "";
 
-  // Thẩm quyền Duyệt Cấp 1: "Ban nào duyệt ban đó"
+  // Thẩm quyền Duyệt Cấp 1: Bắt buộc Trưởng ban / Trưởng phòng của CHÍNH BAN ĐÓ duyệt
   const canApproveLeader = (item: ApprovalItem) => {
     if (item.status !== "PENDING_LEADER") return false;
-    if (isHRAdmin) return true;
+    // Bắt buộc phải là Lãnh đạo / Trưởng phòng và thuộc CÙNG PHÒNG BAN với nhân sự làm đơn
     return isLeader && userDept === item.department;
   };
 
@@ -277,15 +280,15 @@ export const ApprovalTable: React.FC<ApprovalTableProps> = ({
                           </>
                         )}
 
-                        {/* Duyệt Cấp 2 */}
-                        {item.status === "PENDING_HR" && isHRAdmin && (
+                        {/* Duyệt Cấp 2 (Trưởng phòng HCNS) */}
+                        {item.status === "PENDING_HR" && canApproveHR && (
                           <>
                             <button
                               type="button"
                               disabled={actionLoading}
                               onClick={() => onHRApprove(itemId, true)}
                               className="px-3 py-1.5 rounded-lg bg-[#1b365d] hover:bg-[#152a4a] text-white font-semibold text-xs shadow-2xs transition-all hover:scale-105 active:scale-95 flex items-center gap-1"
-                              title="Phê duyệt chốt HCNS & trừ phép thật"
+                              title="Trưởng phòng HCNS phê duyệt chốt & trừ phép thật"
                             >
                               <Check className="w-3.5 h-3.5 stroke-[2.5]" />
                               <span>Duyệt Chốt</span>
@@ -302,8 +305,8 @@ export const ApprovalTable: React.FC<ApprovalTableProps> = ({
                           </>
                         )}
 
-                        {/* HCNS Duyệt Hủy Đơn */}
-                        {item.status === "REQUEST_CANCEL" && isHRAdmin && (
+                        {/* Trưởng phòng HCNS Duyệt Hủy Đơn */}
+                        {item.status === "REQUEST_CANCEL" && canApproveHR && (
                           <button
                             type="button"
                             disabled={actionLoading}
@@ -317,9 +320,32 @@ export const ApprovalTable: React.FC<ApprovalTableProps> = ({
                         )}
 
                         {!canApproveLeader(item) &&
-                          !(item.status === "PENDING_HR" && isHRAdmin) &&
-                          !(item.status === "REQUEST_CANCEL" && isHRAdmin) && (
-                            <span className="text-slate-400 text-xs">--</span>
+                          !(item.status === "PENDING_HR" && canApproveHR) &&
+                          !(item.status === "REQUEST_CANCEL" && canApproveHR) && (
+                            item.status === "PENDING_LEADER" ? (
+                              <span
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md cursor-help"
+                                title={`Đơn đang chờ Trưởng phòng / Trưởng ban (${item.department}) duyệt Cấp 1 trước`}
+                              >
+                                ⏳ Chờ Trưởng phòng
+                              </span>
+                            ) : item.status === "PENDING_HR" ? (
+                              <span
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 rounded-md cursor-help"
+                                title="Đơn đang chờ Trưởng phòng Hành chính - Nhân sự phê duyệt chốt Cấp 2"
+                              >
+                                ⏳ Chờ Trưởng HCNS
+                              </span>
+                            ) : item.status === "REQUEST_CANCEL" ? (
+                              <span
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md cursor-help"
+                                title="Đang chờ Trưởng phòng HCNS xác nhận hủy và hoàn phép"
+                              >
+                                ⏳ Chờ Trưởng HCNS hủy
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-xs">--</span>
+                            )
                           )}
                       </div>
                     </td>

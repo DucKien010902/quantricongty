@@ -376,6 +376,33 @@ export default function AddEmployeeModal({
                 </div>
 
                 <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Email công việc (Email chính) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => handleChange("email", e.target.value)}
+                    placeholder="nam.le@donghaiinvest.vn"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Số điện thoại di động
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.phone}
+                    onChange={(e) => handleChange("phone", e.target.value)}
+                    placeholder="0912 345 678"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-medium"
+                  />
+                </div>
+
+                <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
                     <span>Mã chấm công (Máy chấm công)</span>
                     <span className="text-[10px] text-blue-600 font-normal">Tự động khớp công</span>
@@ -458,6 +485,32 @@ export default function AddEmployeeModal({
                   />
                 </div>
 
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Tôn giáo
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.religion}
+                    onChange={(e) => handleChange("religion", e.target.value)}
+                    placeholder="Không"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Nơi sinh
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.placeOfBirth}
+                    onChange={(e) => handleChange("placeOfBirth", e.target.value)}
+                    placeholder="VD: TP. Hà Nội"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all"
+                  />
+                </div>
+
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Quê quán / Nguyên quán
@@ -527,6 +580,7 @@ export default function AddEmployeeModal({
                     className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-semibold text-[#1b365d]"
                   >
                     <option value="ADMIN">Quản trị viên (Admin - Toàn quyền)</option>
+                    <option value="HCNS">Quản lý Nhân sự (HCNS - Quản lý nhân sự & công)</option>
                     <option value="LEADER">Trưởng ban (Leader - Duyệt đơn & QL ban)</option>
                     <option value="USER">Nhân viên (User - Xem & nộp đơn)</option>
                   </select>
@@ -610,6 +664,32 @@ export default function AddEmployeeModal({
                     <option value="Bậc 5">Bậc 5</option>
                     <option value="Bậc 6">Bậc 6</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Trình độ học vấn
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.education || ""}
+                    onChange={(e) => handleChange("education", e.target.value)}
+                    placeholder="VD: Cử nhân, Thạc sĩ QTKD..."
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Lương cơ bản / Thỏa thuận
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.baseSalary || ""}
+                    onChange={(e) => handleChange("baseSalary", e.target.value)}
+                    placeholder="VD: 15.000.000 đ"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-semibold"
+                  />
                 </div>
 
                 {/* Cấu hình Quỹ Phép Năm */}
@@ -858,13 +938,39 @@ export default function AddEmployeeModal({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Người liên hệ khẩn cấp
+                    Người liên hệ khẩn cấp (Họ tên)
                   </label>
                   <input
                     type="text"
                     value={formData.emergencyContactName}
                     onChange={(e) => handleChange("emergencyContactName", e.target.value)}
-                    placeholder="VD: Người thân - 0912 999 888"
+                    placeholder="Nguyễn Văn Nam"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Số điện thoại khẩn cấp
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.emergencyContactPhone}
+                    onChange={(e) => handleChange("emergencyContactPhone", e.target.value)}
+                    placeholder="0903 219 888"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Mối quan hệ khẩn cấp
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.emergencyRelationship}
+                    onChange={(e) => handleChange("emergencyRelationship", e.target.value)}
+                    placeholder="Bố ruột / Vợ / Chồng / Người thân"
                     className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all"
                   />
                 </div>

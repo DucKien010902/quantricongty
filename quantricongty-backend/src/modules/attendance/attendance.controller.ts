@@ -72,6 +72,17 @@ export class AttendanceController {
     return this.attendanceService.saveDeviceConfig(body);
   }
 
+  @Get('config')
+  async getConfig() {
+    return this.attendanceService.getAttendanceConfig();
+  }
+
+  @Post('config')
+  async saveConfig(@Body() body: any) {
+    return this.attendanceService.saveAttendanceConfig(body);
+  }
+
+
   @Get('holidays')
   async getHolidays() {
     return this.attendanceService.getHolidays();

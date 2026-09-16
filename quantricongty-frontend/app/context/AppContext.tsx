@@ -81,27 +81,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       const stored = localStorage.getItem("dhi_user");
-      const kienAdmin = SEED_EMPLOYEES.find((e) => e.name.includes("Kiên")) || SEED_EMPLOYEES[0];
       if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed) {
-          const isKien =
-            (parsed.email || "").toLowerCase().includes("kien") ||
-            (parsed.name || "").toLowerCase().includes("kien");
-          const enriched = isKien
-            ? {
-                ...kienAdmin,
-                ...parsed,
-                avatar: parsed.avatar || kienAdmin.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&auto=format&fit=crop&q=80",
-                position: "Nhân viên IT",
-                role: "ADMIN",
-                department: "Ban Công nghệ Thông tin & Chuyển đổi số",
-              }
-            : parsed;
-          enriched.name = getUserDisplayName(enriched);
-          enriched.position = getUserPosition(enriched);
-          setCurrentUser(enriched);
-          localStorage.setItem("dhi_user", JSON.stringify(enriched));
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed) {
+            parsed.name = getUserDisplayName(parsed);
+            parsed.position = getUserPosition(parsed);
+            setCurrentUser(parsed);
+          }
+        } catch {
+          // ignore
         }
       } else {
         // Đã đăng xuất -> Giữ currentUser = null, không tự động gán tài khoản
@@ -141,16 +130,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const mapped = empData.map((e: any) => ({ ...e, id: e.code || e._id }));
           setEmployees(mapped);
 
-          // Cập nhật đồng bộ avatar của currentUser theo đúng avatar nhân viên trên backend/database
+          // Cập nhật đồng bộ thông tin của currentUser theo đúng dữ liệu nhân sự trên backend/database
           setCurrentUser((prev: any) => {
             if (!prev) return null;
             const match = mapped.find(
               (e: any) =>
                 (e.email && prev.email && e.email.toLowerCase() === prev.email.toLowerCase()) ||
-                (e.code && (prev.code || prev.id) && (e.code === prev.code || e.code === prev.id))
+                (e.code && (prev.code || prev.id) && (e.code === prev.code || e.code === prev.id)) ||
+                ((e as any)._id && (prev as any)._id && (e as any)._id === (prev as any)._id)
             );
-            if (match && match.avatar) {
-              const updated = { ...match, ...prev, avatar: match.avatar };
+            if (match) {
+              // Dữ liệu từ database (match) là chuẩn, giữ nguyên avatar nếu match chưa có
+              const updated = {
+                ...prev,
+                ...match,
+                avatar: match.avatar || prev.avatar,
+              };
               localStorage.setItem("dhi_user", JSON.stringify(updated));
               return updated;
             }
@@ -199,12 +194,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const handleUpdateCurrentUser = async (updatedUser: any) => {
     const cleanName = getUserDisplayName(updatedUser);
-    const cleanPosition = getUserPosition(updatedUser);
+    const cleanPosition = getUserPosition(currentUser);
     const merged = {
       ...currentUser,
       ...updatedUser,
       name: cleanName,
-      position: cleanPosition,
+      // BẢO VỆ TUYỆT ĐỐI CÁC TRƯỜNG QUẢN TRỊ TỔ CHỨC TỪ TRANG CÁ NHÂN:
+      role: currentUser?.role || "USER",
+      code: currentUser?.code || currentUser?.id || "",
+      attendanceCode: currentUser?.attendanceCode || "",
+      department: currentUser?.department,
+      position: currentUser?.position || cleanPosition,
+      positionLevel: currentUser?.positionLevel,
+      salaryGrade: currentUser?.salaryGrade,
+      baseSalary: currentUser?.baseSalary,
+      annualLeaveQuota: currentUser?.annualLeaveQuota,
+      carriedOverLeave: currentUser?.carriedOverLeave,
     };
     setCurrentUser(merged);
     localStorage.setItem("dhi_user", JSON.stringify(merged));
@@ -242,9 +247,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Merge into employees list
     setEmployees((prev) =>
       prev.map((emp) =>
-        (emp as any)._id === id || emp.id === id ? { ...emp, ...updatedData } : emp
+        (emp as any)._id === id || emp.id === id || emp.code === id
+          ? { ...emp, ...updatedData }
+          : emp
       )
     );
+
+    // Đồng bộ ngay lập tức vào currentUser nếu nhân viên đang được cập nhật chính là currentUser
+    setCurrentUser((prev: any) => {
+      if (!prev) return null;
+      const isSelf =
+        (prev as any)._id === id ||
+        prev.id === id ||
+        prev.code === id ||
+        (prev.email && updatedData.email && prev.email.toLowerCase() === updatedData.email.toLowerCase());
+      if (isSelf) {
+        const merged = { ...prev, ...updatedData };
+        localStorage.setItem("dhi_user", JSON.stringify(merged));
+        return merged;
+      }
+      return prev;
+    });
+
     // Sync to backend
     try {
       await fetch(`http://localhost:5002/api/employees/${id}`, {

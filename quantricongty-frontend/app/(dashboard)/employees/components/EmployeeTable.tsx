@@ -28,6 +28,7 @@ interface EmployeeTableProps {
   onDeleteEmployee: (empId: string) => void;
   onSendInviteClick: (emp: Employee) => void;
   onAddEmployeeClick: () => void;
+  canManage?: boolean;
 }
 
 export default function EmployeeTable({
@@ -40,6 +41,7 @@ export default function EmployeeTable({
   onEditEmployee,
   onDeleteEmployee,
   onSendInviteClick,
+  canManage = true,
 }: EmployeeTableProps) {
   const [internalDept, setInternalDept] = useState<string>("all");
   const selectedDepartment =
@@ -504,33 +506,37 @@ export default function EmployeeTable({
               <span>Xem chi tiết</span>
             </button>
 
-            <button
-              onClick={() => {
-                const emp = activeMenuEmp.emp;
-                setActiveMenuEmp(null);
-                onEditEmployee(emp);
-              }}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
-            >
-              <Edit2 className="w-4 h-4 text-emerald-600" />
-              <span>Sửa hồ sơ</span>
-            </button>
+            {canManage && (
+              <button
+                onClick={() => {
+                  const emp = activeMenuEmp.emp;
+                  setActiveMenuEmp(null);
+                  onEditEmployee(emp);
+                }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+              >
+                <Edit2 className="w-4 h-4 text-emerald-600" />
+                <span>Sửa hồ sơ</span>
+              </button>
+            )}
 
-            <div className="border-t border-slate-100 my-1" />
+            {canManage && <div className="border-t border-slate-100 my-1" />}
 
-            <button
-              onClick={() => {
-                const emp = activeMenuEmp.emp;
-                setActiveMenuEmp(null);
-                if (confirm(`Bạn có chắc muốn xóa hồ sơ ${emp.name}?`)) {
-                  onDeleteEmployee((emp as any)._id || emp.id);
-                }
-              }}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
-            >
-              <Trash2 className="w-4 h-4 text-rose-500" />
-              <span>Xóa nhân sự</span>
-            </button>
+            {canManage && (
+              <button
+                onClick={() => {
+                  const emp = activeMenuEmp.emp;
+                  setActiveMenuEmp(null);
+                  if (confirm(`Bạn có chắc muốn xóa hồ sơ ${emp.name}?`)) {
+                    onDeleteEmployee((emp as any)._id || emp.id);
+                  }
+                }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
+              >
+                <Trash2 className="w-4 h-4 text-rose-500" />
+                <span>Xóa nhân sự</span>
+              </button>
+            )}
           </div>
         </>
       )}

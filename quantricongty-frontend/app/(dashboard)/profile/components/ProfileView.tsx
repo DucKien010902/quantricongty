@@ -74,10 +74,10 @@ export default function ProfileView({
     }
   };
 
-  const displayName = currentUser?.name || "Nguyễn Đức Kiên";
-  const displayCode = currentUser?.code || currentUser?.id || "ĐH0050";
-  const displayPosition = currentUser?.position || "Nhân viên IT";
-  const displayDepartment = currentUser?.department || "Ban Công nghệ Thông tin & Chuyển đổi số";
+  const displayName = currentUser?.name || "—";
+  const displayCode = currentUser?.code || currentUser?.id || "—";
+  const displayPosition = currentUser?.position || "—";
+  const displayDepartment = currentUser?.department || "—";
 
   return (
     <div className="space-y-6">
@@ -243,19 +243,19 @@ export default function ProfileView({
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Số CCCD:</span>
                   <span className="font-mono font-semibold text-slate-800">
-                    {currentUser?.idNumber || "001095012345"}
+                    {currentUser?.idNumber || "—"}
                   </span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Mã số thuế:</span>
                   <span className="font-mono font-semibold text-slate-800">
-                    {currentUser?.taxCode || "8492019281"}
+                    {currentUser?.taxCode || "—"}
                   </span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Số BHXH:</span>
                   <span className="font-mono font-semibold text-slate-800">
-                    {currentUser?.socialInsuranceNo || "7916291029"}
+                    {currentUser?.socialInsuranceNo || "—"}
                   </span>
                 </div>
               </div>
@@ -270,25 +270,25 @@ export default function ProfileView({
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Số tài khoản:</span>
                   <span className="font-mono font-bold text-slate-800">
-                    {currentUser?.bankAccount || "1903482910299"}
+                    {currentUser?.bankAccount || "—"}
                   </span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Ngân hàng:</span>
                   <span className="font-semibold text-slate-800">
-                    {currentUser?.bankName || "Techcombank"}
+                    {currentUser?.bankName || "—"}
                   </span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Điện thoại:</span>
                   <span className="font-semibold text-slate-800">
-                    {currentUser?.phone || "0912 345 678"}
+                    {currentUser?.phone || "—"}
                   </span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Email:</span>
                   <span className="font-semibold text-slate-800">
-                    {currentUser?.email || "kien.nguyen@donghaiinvest.vn"}
+                    {currentUser?.email || "—"}
                   </span>
                 </div>
               </div>
@@ -332,6 +332,28 @@ export default function ProfileView({
               </div>
             </div>
 
+            {/* Mã chấm công */}
+            <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
+              <span className="text-sm text-slate-500 sm:w-1/3">Mã chấm công (Máy chấm công)</span>
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 sm:w-2/3">
+                <span className="font-mono font-bold text-blue-700">{currentUser?.attendanceCode || "—"}</span>
+                {currentUser?.attendanceCode && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(currentUser.attendanceCode, "attCode")}
+                    title="Sao chép mã chấm công"
+                    className="p-1 text-slate-400 hover:text-slate-700 rounded-md transition-colors"
+                  >
+                    {copiedField === "attCode" ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* Họ và tên */}
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Họ và tên</span>
@@ -344,7 +366,7 @@ export default function ProfileView({
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Ngày sinh</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.dob || "15/08/1995"}
+                {currentUser?.dob || "—"}
               </span>
             </div>
 
@@ -360,19 +382,52 @@ export default function ProfileView({
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Email công việc</span>
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 sm:w-2/3">
-                <span>{currentUser?.email || "kien.nguyen@donghaiinvest.vn"}</span>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(currentUser?.email || "", "email")}
-                  title="Sao chép email"
-                  className="p-1 text-slate-400 hover:text-slate-700 rounded-md transition-colors"
-                >
-                  {copiedField === "email" ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                </button>
+                <span>{currentUser?.email || "—"}</span>
+                {currentUser?.email && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(currentUser.email, "email")}
+                    title="Sao chép email"
+                    className="p-1 text-slate-400 hover:text-slate-700 rounded-md transition-colors"
+                  >
+                    {copiedField === "email" ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Số điện thoại di động */}
+            <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
+              <span className="text-sm text-slate-500 sm:w-1/3">Số điện thoại di động</span>
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 sm:w-2/3">
+                {currentUser?.phone ? (
+                  <a
+                    href={`tel:${currentUser.phone}`}
+                    className="text-blue-600 hover:underline font-bold"
+                  >
+                    {currentUser.phone}
+                  </a>
+                ) : (
+                  <span>—</span>
+                )}
+                {currentUser?.phone && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(currentUser.phone, "phone")}
+                    title="Sao chép số điện thoại"
+                    className="p-1 text-slate-400 hover:text-slate-700 rounded-md transition-colors"
+                  >
+                    {copiedField === "phone" ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -411,11 +466,19 @@ export default function ProfileView({
               </span>
             </div>
 
+            {/* Nơi sinh */}
+            <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
+              <span className="text-sm text-slate-500 sm:w-1/3">Nơi sinh</span>
+              <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
+                {currentUser?.placeOfBirth || "—"}
+              </span>
+            </div>
+
             {/* Quê quán / Nguyên quán */}
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Nguyên quán</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.hometown || "Hà Nội"}
+                {currentUser?.hometown || "—"}
               </span>
             </div>
           </div>
@@ -427,13 +490,10 @@ export default function ProfileView({
         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden animate-in fade-in duration-150">
           <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex items-center justify-between">
             <h3 className="text-lg font-bold text-slate-800">Thông tin công việc & Hợp đồng</h3>
-            <button
-              onClick={() => setIsEditModalOpen(true)}
-              className="text-xs font-semibold text-[#1b365d] hover:underline flex items-center gap-1.5"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              Chỉnh sửa
-            </button>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-200/80">
+              <Lock className="w-3 h-3 text-slate-400" />
+              Do HCNS quản lý
+            </span>
           </div>
 
           <div className="divide-y divide-slate-100">
@@ -454,7 +514,7 @@ export default function ProfileView({
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Cấp bậc quản lý</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.workLevel || "Lãnh đạo cấp cao (C-Level)"}
+                {currentUser?.workLevel || "—"}
               </span>
             </div>
 
@@ -468,28 +528,28 @@ export default function ProfileView({
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Ngày bắt đầu vào làm</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.joinDate || "01/01/2021"}
+                {currentUser?.joinDate || "—"}
               </span>
             </div>
 
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Người quản lý trực tiếp</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.directManager || "Đại hội đồng Cổ đông / HĐQT"}
+                {currentUser?.directManager || "—"}
               </span>
             </div>
 
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Địa điểm công tác</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.location || "Trụ sở chính Hà Nội"}
+                {currentUser?.location || "Hà Nội"}
               </span>
             </div>
 
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Trình độ học vấn</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.education || "Thạc sĩ Quản trị Kinh doanh (MBA)"}
+                {currentUser?.education || "—"}
               </span>
             </div>
           </div>
@@ -514,14 +574,14 @@ export default function ProfileView({
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Bậc lương hiện tại</span>
               <span className="text-sm font-bold text-slate-800 sm:w-2/3">
-                {currentUser?.salaryGrade || "Bậc 10 (Executive)"}
+                {currentUser?.salaryGrade || "—"}
               </span>
             </div>
 
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Lương cơ bản</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.baseSalary || "Thỏa thuận Lãnh đạo cấp cao"}
+                {currentUser?.baseSalary || "Thỏa thuận"}
               </span>
             </div>
 
@@ -529,34 +589,36 @@ export default function ProfileView({
               <span className="text-sm text-slate-500 sm:w-1/3">Số tài khoản nhận lương</span>
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 sm:w-2/3">
                 <span className="font-mono font-bold text-[#1b365d]">
-                  {currentUser?.bankAccount || "1903482910299"}
+                  {currentUser?.bankAccount || "—"}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(currentUser?.bankAccount || "1903482910299", "bankAccount")}
-                  title="Sao chép số tài khoản"
-                  className="p-1 text-slate-400 hover:text-slate-700 rounded-md transition-colors"
-                >
-                  {copiedField === "bankAccount" ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                </button>
+                {currentUser?.bankAccount && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(currentUser.bankAccount, "bankAccount")}
+                    title="Sao chép số tài khoản"
+                    className="p-1 text-slate-400 hover:text-slate-700 rounded-md transition-colors"
+                  >
+                    {copiedField === "bankAccount" ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                )}
               </div>
             </div>
 
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Ngân hàng thụ hưởng</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.bankName || "Techcombank (Ngân hàng TMCP Kỹ thương Việt Nam)"}
+                {currentUser?.bankName || "—"}
               </span>
             </div>
 
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Chi nhánh ngân hàng</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.bankBranch || "Hội sở Ba Đình - TP. Hà Nội"}
+                {currentUser?.bankBranch || "—"}
               </span>
             </div>
           </div>
@@ -585,20 +647,22 @@ export default function ProfileView({
               <span className="text-sm text-slate-500 sm:w-1/3">Số Căn cước công dân (CCCD)</span>
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 sm:w-2/3">
                 <span className="font-mono font-bold text-slate-900">
-                  {currentUser?.idNumber || "001095012345"}
+                  {currentUser?.idNumber || "—"}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(currentUser?.idNumber || "001095012345", "idNumber")}
-                  title="Sao chép số CCCD"
-                  className="p-1 text-slate-400 hover:text-slate-700 rounded-md transition-colors"
-                >
-                  {copiedField === "idNumber" ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                </button>
+                {currentUser?.idNumber && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(currentUser.idNumber, "idNumber")}
+                    title="Sao chép số CCCD"
+                    className="p-1 text-slate-400 hover:text-slate-700 rounded-md transition-colors"
+                  >
+                    {copiedField === "idNumber" ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -606,7 +670,7 @@ export default function ProfileView({
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Ngày cấp</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.idIssueDate || "12/04/2021"}
+                {currentUser?.idIssueDate || "—"}
               </span>
             </div>
 
@@ -614,7 +678,7 @@ export default function ProfileView({
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Nơi cấp</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.idIssuePlace || "Cục Cảnh sát QLHC về trật tự xã hội"}
+                {currentUser?.idIssuePlace || "—"}
               </span>
             </div>
 
@@ -623,20 +687,22 @@ export default function ProfileView({
               <span className="text-sm text-slate-500 sm:w-1/3">Mã số thuế cá nhân (MST)</span>
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 sm:w-2/3">
                 <span className="font-mono font-bold text-slate-900">
-                  {currentUser?.taxCode || "8492019281"}
+                  {currentUser?.taxCode || "—"}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(currentUser?.taxCode || "8492019281", "taxCode")}
-                  title="Sao chép MST"
-                  className="p-1 text-slate-400 hover:text-slate-700 rounded-md transition-colors"
-                >
-                  {copiedField === "taxCode" ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                </button>
+                {currentUser?.taxCode && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(currentUser.taxCode, "taxCode")}
+                    title="Sao chép MST"
+                    className="p-1 text-slate-400 hover:text-slate-700 rounded-md transition-colors"
+                  >
+                    {copiedField === "taxCode" ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -644,7 +710,7 @@ export default function ProfileView({
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Cơ quan thuế quản lý</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.taxAuthority || "Chi cục Thuế TP. Hà Nội"}
+                {currentUser?.taxAuthority || "—"}
               </span>
             </div>
 
@@ -653,20 +719,22 @@ export default function ProfileView({
               <span className="text-sm text-slate-500 sm:w-1/3">Mã số Bảo hiểm xã hội (BHXH)</span>
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 sm:w-2/3">
                 <span className="font-mono font-bold text-slate-900">
-                  {currentUser?.socialInsuranceNo || "7916291029"}
+                  {currentUser?.socialInsuranceNo || "—"}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(currentUser?.socialInsuranceNo || "7916291029", "socialInsuranceNo")}
-                  title="Sao chép BHXH"
-                  className="p-1 text-slate-400 hover:text-slate-700 rounded-md transition-colors"
-                >
-                  {copiedField === "socialInsuranceNo" ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                </button>
+                {currentUser?.socialInsuranceNo && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(currentUser.socialInsuranceNo, "socialInsuranceNo")}
+                    title="Sao chép BHXH"
+                    className="p-1 text-slate-400 hover:text-slate-700 rounded-md transition-colors"
+                  >
+                    {copiedField === "socialInsuranceNo" ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -674,7 +742,7 @@ export default function ProfileView({
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Mã số thẻ BHYT</span>
               <span className="text-sm font-mono font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.healthInsuranceNo || "DN4791629102901"}
+                {currentUser?.healthInsuranceNo || "—"}
               </span>
             </div>
 
@@ -682,7 +750,7 @@ export default function ProfileView({
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Nơi ĐK khám chữa bệnh ban đầu</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.hospital || "Bệnh viện Hữu Nghị Việt Đức - Hà Nội"}
+                {currentUser?.hospital || "—"}
               </span>
             </div>
           </div>
@@ -706,46 +774,54 @@ export default function ProfileView({
           <div className="divide-y divide-slate-100">
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Số điện thoại di động</span>
-              <a
-                href={`tel:${currentUser?.phone || "0912345678"}`}
-                className="text-sm font-bold text-blue-600 hover:underline sm:w-2/3"
-              >
-                {currentUser?.phone || "0912 345 678"}
-              </a>
+              {currentUser?.phone ? (
+                <a
+                  href={`tel:${currentUser.phone}`}
+                  className="text-sm font-bold text-blue-600 hover:underline sm:w-2/3"
+                >
+                  {currentUser.phone}
+                </a>
+              ) : (
+                <span className="text-sm font-semibold text-slate-800 sm:w-2/3">—</span>
+              )}
             </div>
 
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Email công việc</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.email || "kien.nguyen@donghaiinvest.vn"}
+                {currentUser?.email || "—"}
               </span>
             </div>
 
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Email cá nhân</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.personalEmail || "kien8438@gmail.com"}
+                {currentUser?.personalEmail || "—"}
               </span>
             </div>
 
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Địa chỉ thường trú</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.permanentAddress || "Số 68 Phố Huế, P. Hàng Bài, Q. Hoàn Kiếm, TP. Hà Nội"}
+                {currentUser?.permanentAddress || "—"}
               </span>
             </div>
 
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Địa chỉ hiện tại / tạm trú</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.currentAddress || "Biệt thự Hoa Lan, Vinhomes Riverside, P. Phúc Đồng, Long Biên, Hà Nội"}
+                {currentUser?.currentAddress || "—"}
               </span>
             </div>
 
             <div className="px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-50/60 transition-colors">
               <span className="text-sm text-slate-500 sm:w-1/3">Người liên hệ khẩn cấp</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
-                {currentUser?.emergencyContactName || "Nguyễn Văn Nam (Bố ruột) - 0903 219 888"}
+                {currentUser?.emergencyContactName
+                  ? `${currentUser.emergencyContactName}${
+                      currentUser.emergencyRelationship ? ` (${currentUser.emergencyRelationship})` : ""
+                    }${currentUser.emergencyContactPhone ? ` - ${currentUser.emergencyContactPhone}` : ""}`
+                  : "—"}
               </span>
             </div>
           </div>
@@ -841,10 +917,16 @@ export default function ProfileView({
             </div>
             <div>
               <span className="text-xs font-bold text-blue-800 uppercase tracking-wider">
-                Cấp độ phân quyền cao nhất
+                Phân quyền hệ thống
               </span>
               <h4 className="text-base font-extrabold text-[#1b365d]">
-                Quản trị viên tối cao (SUPER_ADMIN / CHAIRMAN)
+                {currentUser?.role === "ADMIN"
+                  ? "Quản trị viên (ADMIN)"
+                  : currentUser?.role === "HCNS"
+                  ? "Quản lý Hành chính - Nhân sự (HCNS)"
+                  : currentUser?.role === "LEADER"
+                  ? "Trưởng ban / Quản lý (LEADER)"
+                  : "Cán bộ nhân viên (USER)"}
               </h4>
             </div>
           </div>
@@ -852,14 +934,42 @@ export default function ProfileView({
           <div className="space-y-3">
             <h4 className="text-sm font-bold text-slate-800">Các đặc quyền được cấp:</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {[
-                "Toàn quyền quản trị nhân sự và tài khoản nội bộ",
-                "Phê duyệt và ký điện tử các tài liệu quan trọng",
-                "Quản lý cơ cấu Ban / Phòng và phân công chức danh",
-                "Xem và xuất báo cáo tài chính, chấm công toàn công ty",
-                "Cấu hình hệ thống, gửi email OTP và kiểm soát Whitelist",
-                "Khởi tạo tổ chức và thiết lập quy chế công ty",
-              ].map((perm, idx) => (
+              {(currentUser?.role === "ADMIN"
+                ? [
+                    "Toàn quyền quản trị nhân sự và tài khoản nội bộ",
+                    "Phê duyệt và ký điện tử các tài liệu quan trọng",
+                    "Quản lý cơ cấu Ban / Phòng và phân công chức danh",
+                    "Xem và xuất báo cáo tài chính, chấm công toàn công ty",
+                    "Cấu hình hệ thống và ma trận phân quyền",
+                    "Khởi tạo tổ chức và thiết lập quy chế công ty",
+                  ]
+                : currentUser?.role === "HCNS"
+                ? [
+                    "Quản lý hồ sơ cán bộ nhân viên toàn công ty",
+                    "Theo dõi bảng chấm công, chốt công và đồng bộ máy chấm công",
+                    "Quản trị ngày phép năm và hạn mức nghỉ phép",
+                    "Phê duyệt đơn cấp 2 và đề xuất hủy đơn hoàn phép",
+                    "Đăng tải tài liệu, biểu mẫu hành chính chung",
+                    "Tự chấm công và tra cứu lịch cá nhân",
+                  ]
+                : currentUser?.role === "LEADER"
+                ? [
+                    "Xem danh sách nhân sự thuộc Ban phụ trách",
+                    "Phê duyệt Cấp 1 đơn xin nghỉ phép, công tác của cán bộ trong Ban",
+                    "Theo dõi và rà soát bảng chấm công nội bộ Ban",
+                    "Tạo lịch họp, lịch công tác cho phòng ban",
+                    "Tự chấm công và nộp đề xuất cá nhân",
+                    "Tra cứu danh bạ đồng nghiệp nội bộ",
+                  ]
+                : [
+                    "Tự tra cứu bảng chấm công và giờ vào/ra cá nhân",
+                    "Tạo đơn xin nghỉ phép, đề xuất công tác cá nhân",
+                    "Xem danh bạ nội bộ công ty",
+                    "Theo dõi lịch công tác và sự kiện chung",
+                    "Xem và cập nhật thông tin cá nhân cơ bản",
+                    "Nhận thông báo và văn bản điều hành",
+                  ]
+              ).map((perm, idx) => (
                 <div
                   key={idx}
                   className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-200/80 bg-slate-50/50 text-xs sm:text-sm font-medium text-slate-700"
@@ -880,6 +990,7 @@ export default function ProfileView({
         currentUser={currentUser}
         departments={departments}
         onSave={onUpdateUser}
+        isSelfProfile={true}
       />
     </div>
   );

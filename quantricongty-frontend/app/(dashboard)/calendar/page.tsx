@@ -13,11 +13,8 @@ import {
   CheckCircle2,
   X,
   Sparkles,
-  CalendarCheck,
-  Video,
   FileText,
   Building,
-  Tag,
 } from "lucide-react";
 import { useApp } from "@/app/context/AppContext";
 
@@ -367,80 +364,7 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* 4 THẺ THỐNG KÊ LỊCH CÔNG TÁC */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-slate-600">Sự kiện tháng này</span>
-            <div className="p-2.5 rounded-xl bg-blue-50 text-[#1b365d]">
-              <CalendarCheck className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl sm:text-4xl font-extrabold text-[#1b365d] font-mono">
-                {events.length}
-              </span>
-              <span className="text-sm font-medium text-slate-500">sự kiện</span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1 font-medium">Toàn hệ thống công ty</p>
-          </div>
-        </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-blue-200/90 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-slate-600">Họp & Giao ban</span>
-            <div className="p-2.5 rounded-xl bg-blue-50 text-blue-700">
-              <Users className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl sm:text-4xl font-extrabold text-blue-800 font-mono">
-                {events.filter((e) => e.category === "meeting").length}
-              </span>
-              <span className="text-sm font-medium text-slate-500">cuộc họp</span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1 font-medium">Giao ban HĐQT & các Ban</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-purple-200/90 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-slate-600">Đào tạo nội bộ</span>
-            <div className="p-2.5 rounded-xl bg-purple-50 text-purple-700">
-              <Video className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl sm:text-4xl font-extrabold text-purple-800 font-mono">
-                {events.filter((e) => e.category === "training").length}
-              </span>
-              <span className="text-sm font-medium text-slate-500">buổi</span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1 font-medium">Hội thảo & Nâng cao kỹ năng</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-emerald-200/90 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-slate-600">Nghỉ lễ & Phúc lợi</span>
-            <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700">
-              <Tag className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl sm:text-4xl font-extrabold text-emerald-800 font-mono">
-                {events.filter((e) => e.category === "holiday" || e.category === "benefit").length}
-              </span>
-              <span className="text-sm font-medium text-slate-500">ngày</span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1 font-medium">Quyền lợi dành cho CBNV</p>
-          </div>
-        </div>
-      </div>
 
       {/* BỘ LỌC TABS CỦA LỊCH */}
       <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">

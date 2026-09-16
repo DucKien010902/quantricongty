@@ -20,6 +20,7 @@ interface ApprovalDetailModalProps {
   approvalNote: string;
   onNoteChange: (note: string) => void;
   actionLoading: boolean;
+  isHeadOfHR?: boolean;
   isHRAdmin: boolean;
   isLeader: boolean;
   currentUser: any;
@@ -36,6 +37,7 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
   approvalNote,
   onNoteChange,
   actionLoading,
+  isHeadOfHR = false,
   isHRAdmin,
   isLeader,
   currentUser,
@@ -47,9 +49,10 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
 }) => {
   const itemId = item._id || item.id || "";
   const userDept = currentEmployee?.department || currentUser?.department || "";
+  const canApproveHR = isHeadOfHR || isHRAdmin || (currentUser?.role === "ADMIN");
 
   const canApproveLeader =
-    item.status === "PENDING_LEADER" && (isHRAdmin || (isLeader && userDept === item.department));
+    item.status === "PENDING_LEADER" && isLeader && userDept === item.department;
 
   return (
     <div
@@ -244,14 +247,30 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 px-6 border-t border-slate-100 bg-slate-50/80 flex items-center justify-end gap-2.5">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200/70 transition-colors"
-          >
-            Đóng
-          </button>
+        <div className="p-4 px-6 border-t border-slate-100 bg-slate-50/80 flex flex-wrap items-center justify-between gap-2.5">
+          {/* Thông báo tiến trình cho người xem khi không có quyền thao tác */}
+          {item.status === "PENDING_LEADER" && !canApproveLeader ? (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold">
+              <span>⏳ Đang chờ Trưởng phòng / Trưởng ban ({item.department}) duyệt Cấp 1</span>
+            </div>
+          ) : item.status === "PENDING_HR" && !canApproveHR ? (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-800 border border-indigo-200 text-xs font-semibold">
+              <span>⏳ Đang chờ Trưởng phòng Hành chính - Nhân sự phê duyệt chốt (Cấp 2)</span>
+            </div>
+          ) : item.status === "REQUEST_CANCEL" && !canApproveHR ? (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold">
+              <span>⏳ Đang chờ Trưởng phòng HCNS xác nhận duyệt hủy & hoàn phép</span>
+            </div>
+          ) : <div />}
+
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200/70 transition-colors"
+            >
+              Đóng
+            </button>
 
           {/* Cấp 1 Actions */}
           {canApproveLeader && (
@@ -276,8 +295,8 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
             </>
           )}
 
-          {/* Cấp 2 Actions */}
-          {item.status === "PENDING_HR" && isHRAdmin && (
+          {/* Cấp 2 Actions (Trưởng phòng HCNS) */}
+          {item.status === "PENDING_HR" && canApproveHR && (
             <>
               <button
                 type="button"
@@ -299,8 +318,8 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
             </>
           )}
 
-          {/* Request Cancel Action */}
-          {item.status === "REQUEST_CANCEL" && isHRAdmin && (
+          {/* Request Cancel Action (Trưởng phòng HCNS) */}
+          {item.status === "REQUEST_CANCEL" && canApproveHR && (
             <>
               <button
                 type="button"
@@ -321,6 +340,7 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
               </button>
             </>
           )}
+          </div>
         </div>
       </div>
     </div>

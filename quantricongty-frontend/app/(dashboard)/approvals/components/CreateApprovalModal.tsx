@@ -71,6 +71,58 @@ export const CreateApprovalModal: React.FC<CreateApprovalModalProps> = ({
     return { count: dates.length, dates };
   }, [newStartDate, newEndDate]);
 
+  // Thông báo luồng phê duyệt theo đúng chức danh
+  const workflowNotice = useMemo(() => {
+    const emp = currentEmployee || currentUser;
+    if (!emp) return null;
+    const dept = (emp.department || "").toLowerCase();
+    const pos = (emp.position || "").toLowerCase();
+    const level = (emp.positionLevel || "").toLowerCase();
+
+    const isHRDept =
+      dept.includes("nhân sự") ||
+      dept.includes("hcns") ||
+      dept.includes("hành chính") ||
+      dept.includes("tổ chức");
+
+    const isLeaderTitle =
+      pos.includes("trưởng") ||
+      pos.includes("giám đốc") ||
+      pos.includes("phụ trách") ||
+      level.includes("trưởng") ||
+      level.includes("quản trị");
+
+    if (isHRDept && isLeaderTitle) {
+      return {
+        badge: "Tự động duyệt (APPROVED)",
+        text: "Bạn có chức danh Trưởng phòng/Trưởng ban HCNS. Đơn sẽ được tự động duyệt ngay lập tức và tự hủy được khi cần.",
+        color: "bg-emerald-50 text-emerald-800 border-emerald-200",
+      };
+    }
+
+    if (isLeaderTitle || emp.role === "LEADER") {
+      return {
+        badge: "Luồng 1 bước (Chuyển thẳng Trưởng phòng HCNS)",
+        text: "Bạn là Trưởng Ban chuyên môn. Đơn sẽ được chuyển thẳng tới Trưởng phòng HCNS phê duyệt chốt (bỏ qua Cấp 1).",
+        color: "bg-indigo-50 text-indigo-800 border-indigo-200",
+      };
+    }
+
+    if (isHRDept) {
+      return {
+        badge: "Luồng 1 bước (Chuyển thẳng Trưởng phòng HCNS)",
+        text: "Bạn thuộc phòng HCNS. Đơn sẽ được chuyển thẳng tới Trưởng phòng HCNS phê duyệt trực tiếp.",
+        color: "bg-indigo-50 text-indigo-800 border-indigo-200",
+      };
+    }
+
+    return {
+      badge: "Luồng chuẩn 2 bước",
+      text: "Đơn của bạn sẽ qua Trưởng phòng/Trưởng ban duyệt Cấp 1 trước, sau đó chuyển Trưởng phòng HCNS duyệt chốt Cấp 2.",
+      color: "bg-slate-50 text-slate-700 border-slate-200",
+    };
+  }, [currentEmployee, currentUser]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -155,6 +207,17 @@ export const CreateApprovalModal: React.FC<CreateApprovalModalProps> = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4 text-xs">
+          {/* Workflow notification */}
+          {workflowNotice && (
+            <div className={`p-3 rounded-xl border flex items-start gap-2 ${workflowNotice.color}`}>
+              <span className="w-2 h-2 rounded-full bg-current mt-1.5 shrink-0" />
+              <div>
+                <p className="font-bold text-xs">{workflowNotice.badge}</p>
+                <p className="text-[11px] opacity-90 mt-0.5">{workflowNotice.text}</p>
+              </div>
+            </div>
+          )}
+
           {/* Type Select */}
           <div>
             <label className="block font-bold text-slate-700 mb-1">Loại đề xuất *</label>
