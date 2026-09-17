@@ -24,6 +24,8 @@ import { useApp } from "@/app/context/AppContext";
 import { ApprovalItem, UserLeaveStats } from "../approvals/types";
 import { CreateApprovalModal } from "../approvals/components/CreateApprovalModal";
 import { CancelApprovalModal } from "../approvals/components/CancelApprovalModal";
+import { ActionConfirmModal, ConfirmVariant } from "@/app/components/ui/ActionConfirmModal";
+import { StatusFeedbackModal, FeedbackType } from "@/app/components/ui/StatusFeedbackModal";
 
 export default function LeavePage() {
   const { currentUser, employees, showToast, loadData } = useApp();
@@ -35,6 +37,27 @@ export default function LeavePage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
   const [cancelModalItem, setCancelModalItem] = useState<ApprovalItem | null>(null);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
+
+  // Confirmation & Feedback modals state
+  const [confirmModalState, setConfirmModalState] = useState<{
+    isOpen: boolean;
+    item: ApprovalItem;
+    title: string;
+    description: string;
+    itemDetails: { label: string; value: string }[];
+  } | null>(null);
+
+  const [feedbackState, setFeedbackState] = useState<{
+    isOpen: boolean;
+    type: FeedbackType;
+    title: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: "success",
+    title: "",
+    message: "",
+  });
 
   // Matched employee of logged in user
   const currentEmployee = useMemo(() => {
@@ -67,31 +90,12 @@ export default function LeavePage() {
     };
   }, [currentEmployee]);
 
-  // Kiểm tra Trưởng phòng HCNS dựa trên chức danh
-  const isHeadOfHR = useMemo(() => {
+  // Kiểm tra quyền Admin nghiệp vụ
+  const isBusinessAdmin = useMemo(() => {
     const emp = currentEmployee || currentUser;
     if (!emp) return false;
-    const dept = (emp.department || "").toLowerCase();
-    const pos = (emp.position || "").toLowerCase();
-    const level = (emp.positionLevel || "").toLowerCase();
     const role = (emp.role || "").toUpperCase();
-
-    if (role === "ADMIN") return true;
-
-    const isHRDept =
-      dept.includes("nhân sự") ||
-      dept.includes("hcns") ||
-      dept.includes("hành chính") ||
-      dept.includes("tổ chức");
-
-    const isLeaderTitle =
-      pos.includes("trưởng") ||
-      pos.includes("giám đốc") ||
-      pos.includes("phụ trách") ||
-      level.includes("trưởng") ||
-      level.includes("quản trị");
-
-    return isHRDept && isLeaderTitle;
+    return role === "ADMIN";
   }, [currentUser, currentEmployee]);
 
   // Fetch leave requests from backend
@@ -128,13 +132,8 @@ export default function LeavePage() {
 
   const myFilteredLeaves = useMemo(() => {
     return leaves.filter((item) => {
-      // 1. Chỉ của mình
       if (!isMyRequest(item)) return false;
-
-      // 2. Lọc trạng thái
       if (selectedStatus !== "all" && item.status !== selectedStatus) return false;
-
-      // 3. Tìm kiếm
       if (searchQuery.trim() !== "") {
         const q = searchQuery.toLowerCase();
         const matchTitle = (item.title || "").toLowerCase().includes(q);
@@ -164,19 +163,43 @@ export default function LeavePage() {
       const created = await res.json();
       setLeaves([created, ...leaves]);
       setIsCreateModalOpen(false);
-      if (created.status === "APPROVED") {
-        showToast("Đơn nghỉ phép của Trưởng phòng HCNS đã được TỰ ĐỘNG DUYỆT ngay lập tức!");
-      } else if (created.status === "PENDING_HR") {
-        showToast("Đơn nghỉ phép đã được chuyển thẳng tới Trưởng phòng HCNS phê duyệt!");
-      } else {
-        showToast("Đã gửi đơn xin nghỉ phép thành công! Đang chờ Trưởng phòng duyệt Cấp 1.");
-      }
       await loadData();
+
+      setFeedbackState({
+        isOpen: true,
+        type: "success",
+        title: "Tạo Đơn Xin Nghỉ Phép Thành Công!",
+        message: created.status === "APPROVED"
+          ? "Đơn nghỉ phép đã được TỰ ĐỘNG DUYỆT ngay lập tức!"
+          : created.status === "PENDING_HR"
+          ? "Đơn nghỉ phép đã được gửi thẳng tới Trưởng phòng HCNS phê duyệt."
+          : "Đã gửi đơn thành công! Đang chờ Trưởng Ban chuyên môn duyệt Cấp 1.",
+      });
     } catch (err: any) {
-      alert(err.message || "Có lỗi xảy ra khi tạo đơn nghỉ phép!");
+      setFeedbackState({
+        isOpen: true,
+        type: "error",
+        title: "Gửi Đơn Thất Bại!",
+        message: err.message || "Có lỗi xảy ra khi tạo đơn nghỉ phép!",
+      });
     } finally {
       setActionLoading(false);
     }
+  };
+
+  // Prompt confirmation for cancel
+  const promptCancelRequest = (item: ApprovalItem) => {
+    setConfirmModalState({
+      isOpen: true,
+      item,
+      title: "Xác Nhận Hủy Đơn Xin Nghỉ Phép",
+      description: "Bạn có chắc chắn muốn hủy đơn xin nghỉ phép này không?",
+      itemDetails: [
+        { label: "Tiêu đề đơn", value: item.title },
+        { label: "Thời gian nghỉ", value: `${item.startDate || ""} → ${item.endDate || ""}` },
+        { label: "Số ngày nghỉ", value: `${item.daysCount || 1} ngày` },
+      ],
+    });
   };
 
   // Handle cancel request by requester
@@ -203,16 +226,25 @@ export default function LeavePage() {
       const updated = await res.json();
       setLeaves((prev) => prev.map((a) => (a._id === id || a.id === id ? updated : a)));
       setCancelModalItem(null);
-      showToast(
-        updated.status === "CANCELLED"
-          ? (item.status === "APPROVED"
-              ? "Trưởng phòng HCNS đã tự hủy đơn thành công và hoàn lại ngày phép vào quỹ!"
-              : "Đã hủy đơn thành công!")
-          : "Đã gửi đề xuất hủy đơn tới Trưởng phòng HCNS để hoàn lại ngày phép!"
-      );
       await loadData();
+
+      setFeedbackState({
+        isOpen: true,
+        type: "success",
+        title: "Đã Thao Tác Hủy Đơn Thành Công!",
+        message: updated.status === "CANCELLED"
+          ? (item.status === "APPROVED"
+              ? "Đã hủy đơn thành công và tự động hoàn lại ngày phép vào quỹ cá nhân!"
+              : "Đã hủy đơn xin nghỉ phép thành công!")
+          : "Đã gửi đề xuất hủy đơn tới Admin nghiệp vụ để phê duyệt hoàn phép!",
+      });
     } catch (err: any) {
-      alert(err.message || "Có lỗi xảy ra khi hủy đơn!");
+      setFeedbackState({
+        isOpen: true,
+        type: "error",
+        title: "Hủy Đơn Thất Bại!",
+        message: err.message || "Có lỗi xảy ra khi hủy đơn!",
+      });
     } finally {
       setActionLoading(false);
     }
@@ -231,7 +263,7 @@ export default function LeavePage() {
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-800 border border-indigo-200">
             <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-            Chờ HCNS duyệt
+            Chờ Admin duyệt
           </span>
         );
       case "APPROVED":
@@ -533,24 +565,24 @@ export default function LeavePage() {
                             <button
                               type="button"
                               disabled={actionLoading}
-                              onClick={() => handleCancelRequest(l)}
-                              className="px-3 py-1.5 rounded-lg text-rose-700 hover:bg-rose-50 border border-rose-200 text-xs font-semibold transition-all hover:shadow-2xs active:scale-95"
+                              onClick={() => promptCancelRequest(l)}
+                              className="px-3 py-1.5 rounded-lg text-rose-700 hover:bg-rose-50 border border-rose-200 text-xs font-semibold transition-all hover:shadow-2xs active:scale-95 cursor-pointer"
                               title="Hủy đơn này"
                             >
                               Hủy đơn
                             </button>
                           )}
 
-                          {/* Đã duyệt -> Đề xuất hủy hoặc Tự hủy (Trưởng phòng HCNS) */}
+                          {/* Đã duyệt -> Đề xuất hủy hoặc Tự hủy (Admin nghiệp vụ) */}
                           {l.status === "APPROVED" && (
                             <button
                               type="button"
                               disabled={actionLoading}
                               onClick={() => setCancelModalItem(l)}
-                              className="px-3 py-1.5 rounded-lg text-amber-800 hover:bg-amber-50 border border-amber-300 text-xs font-semibold transition-all hover:shadow-2xs active:scale-95"
-                              title={isHeadOfHR ? "Trưởng phòng HCNS tự hủy đơn và hoàn lại ngày phép" : "Gửi đề xuất hủy đơn tới Trưởng phòng HCNS"}
+                              className="px-3 py-1.5 rounded-lg text-amber-800 hover:bg-amber-50 border border-amber-300 text-xs font-semibold transition-all hover:shadow-2xs active:scale-95 cursor-pointer"
+                              title={isBusinessAdmin ? "Admin nghiệp vụ tự hủy đơn và hoàn lại ngày phép" : "Gửi đề xuất hủy đơn tới Admin nghiệp vụ"}
                             >
-                              {isHeadOfHR ? "Hủy đơn & Hoàn phép" : "Đề xuất hủy"}
+                              {isBusinessAdmin ? "Hủy đơn & Hoàn phép" : "Đề xuất hủy"}
                             </button>
                           )}
 
@@ -588,8 +620,36 @@ export default function LeavePage() {
         item={cancelModalItem}
         onClose={() => setCancelModalItem(null)}
         actionLoading={actionLoading}
-        isHeadOfHR={isHeadOfHR}
+        isAdmin={isBusinessAdmin}
         onConfirmCancel={handleCancelRequest}
+      />
+
+      {/* MODAL XÁC NHẬN HỦY ĐƠN */}
+      {confirmModalState && (
+        <ActionConfirmModal
+          isOpen={confirmModalState.isOpen}
+          onClose={() => setConfirmModalState(null)}
+          onConfirm={() => {
+            const item = confirmModalState.item;
+            setConfirmModalState(null);
+            handleCancelRequest(item);
+          }}
+          title={confirmModalState.title}
+          description={confirmModalState.description}
+          variant="danger"
+          confirmText="Xác nhận hủy đơn"
+          itemDetails={confirmModalState.itemDetails}
+          isLoading={actionLoading}
+        />
+      )}
+
+      {/* MODAL PHẢN HỒI TRẠNG THÁI (SUCCESS / FAILURE FEEDBACK MODAL) */}
+      <StatusFeedbackModal
+        isOpen={feedbackState.isOpen}
+        onClose={() => setFeedbackState({ ...feedbackState, isOpen: false })}
+        type={feedbackState.type}
+        title={feedbackState.title}
+        message={feedbackState.message}
       />
     </div>
   );

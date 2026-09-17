@@ -17,6 +17,7 @@ import {
   Building,
 } from "lucide-react";
 import { useApp } from "@/app/context/AppContext";
+import Modal from "@/app/components/ui/Modal";
 
 interface EventItem {
   id: string;
@@ -549,14 +550,14 @@ export default function CalendarPage() {
 
       {/* MODAL 1: CHI TIẾT SỰ KIỆN */}
       {inspectEvent && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in"
-          onClick={() => setInspectEvent(null)}
+        <Modal
+          isOpen={Boolean(inspectEvent)}
+          onClose={() => setInspectEvent(null)}
+          size="lg"
+          hideHeader
+          className="p-0 overflow-hidden"
         >
-          <div
-            className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="flex flex-col h-full overflow-hidden">
             {/* Modal Header */}
             <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 via-[#1b365d] to-[#122440] text-white">
               <div className="flex items-center gap-3">
@@ -651,19 +652,19 @@ export default function CalendarPage() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* MODAL 2: THÊM SỰ KIỆN MỚI */}
       {isCreateModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in"
-          onClick={() => setIsCreateModalOpen(false)}
+        <Modal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          size="lg"
+          hideHeader
+          className="p-0 overflow-hidden"
         >
-          <div
-            className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="flex flex-col h-full overflow-hidden">
             {/* Modal Header */}
             <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 via-[#1b365d] to-[#122440] text-white">
               <div className="flex items-center gap-3">
@@ -790,7 +791,7 @@ export default function CalendarPage() {
               </div>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

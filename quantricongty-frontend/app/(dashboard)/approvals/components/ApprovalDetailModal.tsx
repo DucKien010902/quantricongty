@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   ClipboardCheck,
   CheckCircle2,
@@ -49,22 +50,34 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
 }) => {
   const itemId = item._id || item.id || "";
   const userDept = currentEmployee?.department || currentUser?.department || "";
-  const canApproveHR = isHeadOfHR || isHRAdmin || (currentUser?.role === "ADMIN");
+  // Thẩm quyền Duyệt Cấp 2 & Duyệt Hủy: Quản trị viên (Admin nghiệp vụ)
+  const canApproveHR = Boolean(
+    currentUser?.role === "ADMIN" ||
+    currentEmployee?.role === "ADMIN" ||
+    isHeadOfHR
+  );
 
   const canApproveLeader =
     item.status === "PENDING_LEADER" && isLeader && userDept === item.department;
 
-  return (
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col"
+        className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col my-auto animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 via-[#1b365d] to-[#122440] text-white">
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 via-[#1b365d] to-[#122440] text-white shrink-0">
           <div className="flex items-center gap-3">
             <ClipboardCheck className="w-6 h-6 text-blue-300" />
             <div>
@@ -255,11 +268,11 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
             </div>
           ) : item.status === "PENDING_HR" && !canApproveHR ? (
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-800 border border-indigo-200 text-xs font-semibold">
-              <span>⏳ Đang chờ Trưởng phòng Hành chính - Nhân sự phê duyệt chốt (Cấp 2)</span>
+              <span>⏳ Đang chờ Quản trị viên (Admin nghiệp vụ) phê duyệt chốt (Cấp 2)</span>
             </div>
           ) : item.status === "REQUEST_CANCEL" && !canApproveHR ? (
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold">
-              <span>⏳ Đang chờ Trưởng phòng HCNS xác nhận duyệt hủy & hoàn phép</span>
+              <span>⏳ Đang chờ Quản trị viên (Admin nghiệp vụ) xác nhận duyệt hủy & hoàn phép</span>
             </div>
           ) : <div />}
 
@@ -295,7 +308,7 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
             </>
           )}
 
-          {/* Cấp 2 Actions (Trưởng phòng HCNS) */}
+          {/* Cấp 2 Actions (Admin nghiệp vụ) */}
           {item.status === "PENDING_HR" && canApproveHR && (
             <>
               <button
@@ -304,7 +317,7 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
                 onClick={() => onHRApprove(itemId, false, approvalNote)}
                 className="px-4 py-2.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors"
               >
-                Từ chối Cấp HCNS
+                Từ chối Cấp 2
               </button>
               <button
                 type="button"
@@ -313,7 +326,7 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
                 className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#1b365d] hover:bg-[#152a4a] shadow-sm transition-colors flex items-center gap-1.5"
               >
                 <Check className="w-4 h-4 stroke-[2.5]" />
-                <span>Duyệt Chốt & Trừ Phép (C2)</span>
+                <span>Admin Duyệt Chốt (C2)</span>
               </button>
             </>
           )}
@@ -343,7 +356,8 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

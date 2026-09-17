@@ -98,8 +98,15 @@ export class EmployeeService {
     return created;
   }
 
-  async update(id: string, data: Partial<Employee>): Promise<Employee | null> {
+  async update(id: string, data: Partial<Employee> & { operatorRole?: string }): Promise<Employee | null> {
     const updateData: any = { ...data };
+
+    // Bảo mật phân quyền: Chỉ Quản trị viên (Admin) mới có quyền thay đổi vai trò hệ thống (role)
+    if (updateData.operatorRole !== undefined && updateData.operatorRole.toUpperCase() !== 'ADMIN') {
+      delete updateData.role;
+    }
+    delete updateData.operatorRole;
+
     if (
       updateData.annualLeaveQuota !== undefined ||
       updateData.carriedOverLeave !== undefined ||

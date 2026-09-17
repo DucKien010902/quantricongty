@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { X, Send, Copy, Check, Mail, Building2, ExternalLink, Loader2 } from "lucide-react";
 import { Employee } from "@/app/data/seed-employees";
+import Modal from "@/app/components/ui/Modal";
 
 interface SendInviteModalProps {
   employee: Employee | null;
@@ -61,14 +62,14 @@ export default function SendInviteModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in"
-      onClick={onClose}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="lg"
+      hideHeader
+      className="p-0 overflow-hidden"
     >
-      <div
-        className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-100"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-2.5">
@@ -189,6 +190,6 @@ export default function SendInviteModal({
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

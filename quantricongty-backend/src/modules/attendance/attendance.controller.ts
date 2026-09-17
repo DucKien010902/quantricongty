@@ -27,8 +27,12 @@ export class AttendanceController {
   }
 
   @Get('monthly-summary')
-  async getMonthlySummary(@Query('month') month?: string) {
-    return this.attendanceService.getMonthlySummary(month);
+  async getMonthlySummary(
+    @Query('month') month?: string,
+    @Query('userId') userId?: string,
+    @Query('department') department?: string,
+  ) {
+    return this.attendanceService.getMonthlySummary(month, userId, department);
   }
 
   @Get('raw-logs')

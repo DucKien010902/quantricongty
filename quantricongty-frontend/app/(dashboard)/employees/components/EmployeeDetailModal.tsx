@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import {
   X,
@@ -47,6 +48,11 @@ export default function EmployeeDetailModal({
   const [activeTab, setActiveTab] = useState<string>("personal");
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -146,19 +152,21 @@ export default function EmployeeDetailModal({
   const displayPosition = getRoleDisplayName((emp as any).role, (emp as any).position);
   const statusInfo = getStatusInfo(emp.status);
 
-  return (
+  if (!isOpen || !employee || !mounted) return null;
+
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 transition-opacity duration-300 ${
-          visible ? "opacity-100" : "opacity-0"
+        className={`fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[100] transition-opacity duration-300 ${
+          visible ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         onClick={onClose}
       />
 
       {/* Drawer */}
       <div
-        className={`fixed top-0 right-0 h-full w-full max-w-3xl bg-slate-50 z-50 shadow-2xl flex flex-col transition-transform duration-300 ease-out ${
+        className={`fixed top-0 right-0 h-full w-full max-w-3xl bg-slate-50 z-[101] shadow-2xl flex flex-col transition-transform duration-300 ease-out ${
           visible ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -464,6 +472,7 @@ export default function EmployeeDetailModal({
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }

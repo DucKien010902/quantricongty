@@ -63,6 +63,15 @@ export const DEFAULT_PERMISSION_MATRIX: PermissionGroup[] = [
         hr: true,
       },
       {
+        id: "employees.change_role",
+        label: "Phân quyền vai trò hệ thống của nhân viên (ADMIN, HCNS, LEADER, USER)",
+        note: "Chỉ Quản trị viên (Admin) mới có quyền cấp và thay đổi vai trò hệ thống (HCNS không sửa được)",
+        admin: true,
+        leader: false,
+        employee: false,
+        hr: false,
+      },
+      {
         id: "employees.export",
         label: "Xuất dữ liệu & Tải mẫu Excel nhân sự",
         note: "Admin & HCNS xuất toàn công ty; Trưởng ban xuất ban mình",
@@ -82,12 +91,30 @@ export const DEFAULT_PERMISSION_MATRIX: PermissionGroup[] = [
       },
       {
         id: "leave_management.view",
-        label: "Quản lý quỹ phép nhân viên",
+        label: "Quản lý quỹ phép nhân viên (Xem toàn công ty)",
         note: "Quản trị ngày phép năm và hạn mức nghỉ",
         admin: true,
         leader: false,
         employee: false,
-        hr: false,
+        hr: true,
+      },
+      {
+        id: "leave_management.manage",
+        label: "Thao tác quỹ phép (Cấp phát, sửa hạn mức, reset)",
+        note: "Cập nhật ngày phép năm, chuyển phép tồn, thiết lập lại hạn mức",
+        admin: true,
+        leader: false,
+        employee: false,
+        hr: true,
+      },
+      {
+        id: "leave_management.export",
+        label: "Xuất báo cáo quỹ phép",
+        note: "Kết xuất file Excel báo cáo phép năm",
+        admin: true,
+        leader: false,
+        employee: false,
+        hr: true,
       },
     ],
   },
@@ -95,21 +122,30 @@ export const DEFAULT_PERMISSION_MATRIX: PermissionGroup[] = [
     module: "Chấm công & Ca làm việc",
     items: [
       {
-        id: "attendance.view",
-        label: "Xem bảng chấm công",
-        note: "Admin & HCNS xem tất cả; Trưởng ban & Nhân viên xem của mình",
+        id: "attendance.view_all",
+        label: "Xem bảng chấm công toàn bộ nhân viên",
+        note: "Admin & HCNS xem tất cả phòng ban; Nhân viên thường xem của mình",
         admin: true,
-        leader: false, // xem của mình
-        employee: false, // xem của mình
+        leader: false,
+        employee: false,
         hr: true,
       },
       {
         id: "attendance.manage",
-        label: "Các hiển thị và thao tác với bảng công",
-        note: "Chốt công tháng, nhập file Excel, đồng bộ máy chấm công",
+        label: "Quản trị chấm công (Chốt công, đồng bộ vân tay, import Excel)",
+        note: "Thực hiện khóa kỳ công tháng, nạp dữ liệu từ máy chấm công",
         admin: true,
         leader: false,
         employee: false,
+        hr: true,
+      },
+      {
+        id: "attendance.export",
+        label: "Xuất dữ liệu chấm công ra file Excel",
+        note: "Kết xuất file tổng hợp hoặc chi tiết chấm công",
+        admin: true,
+        leader: false,
+        employee: true,
         hr: true,
       },
     ],
@@ -130,7 +166,7 @@ export const DEFAULT_PERMISSION_MATRIX: PermissionGroup[] = [
   },
 ];
 
-const STORAGE_KEY = "dhi_permission_matrix_v1";
+const STORAGE_KEY = "dhi_permission_matrix_v2";
 
 /**
  * Lấy ma trận phân quyền hiện tại (từ localStorage nếu có, merge với mặc định)
@@ -254,3 +290,219 @@ export function canUserAccess(user: any, permissionId: string): boolean {
   // Mặc định cho phép nếu chưa được định nghĩa trong ma trận
   return true;
 }
+
+// =========================================================================
+// QUYỀN HỆ THỐNG (SYSTEM ADMIN - QUẢN TRỊ VIÊN KỸ THUẬT TỐI CAO)
+// Quy tắc nghiệp vụ:
+// 1. Bình thường tất cả tài khoản chỉ là USER ở tầng hệ thống.
+// 2. Toàn hệ thống có TỐI ĐA 2 TÀI KHOẢN sở hữu Quyền hệ thống cùng lúc.
+// 3. Nguyễn Đức Kiên (ĐH0050) là Người khởi tạo hệ thống -> Tự động luôn có 1 suất cố định.
+// 4. Suất thứ 2 có thể gán thêm hoặc chuyển đổi, nhưng KHÔNG BAO GIỜ ĐƯỢC XÓA SẠCH (luôn >= 1).
+// 5. Chỉ tài khoản sở hữu Quyền hệ thống mới được thấy và truy cập trang /settings.
+// =========================================================================
+
+export interface SystemAdminSlot {
+  code: string;
+  name: string;
+  email?: string;
+  avatar?: string;
+  department?: string;
+  position?: string;
+  isRoot?: boolean; // true đối với Nguyễn Đức Kiên (Root Admin khởi tạo)
+  assignedAt?: string;
+}
+
+export const ROOT_SYSTEM_ADMIN: SystemAdminSlot = {
+  code: "ĐH0050",
+  name: "Nguyễn Đức Kiên",
+  email: "kiennd.forimex@gmail.com",
+  avatar: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTEcN6OBmR6zsdwTmD4duBznQO1ORmCq5Yc-MdPDoNOgA&s=10",
+  department: "Ban Công nghệ Thông tin & Chuyển đổi số",
+  position: "Trưởng phòng công nghệ",
+  isRoot: true,
+  assignedAt: "01/01/2021",
+};
+
+const SYSTEM_ADMINS_STORAGE_KEY = "dhi_system_admins_v1";
+
+/**
+ * Lấy danh sách tài khoản giữ Quyền hệ thống (Tối đa 2 tài khoản)
+ */
+export function getStoredSystemAdmins(): SystemAdminSlot[] {
+  if (typeof window === "undefined") return [ROOT_SYSTEM_ADMIN];
+  try {
+    const raw = localStorage.getItem(SYSTEM_ADMINS_STORAGE_KEY);
+    if (!raw) {
+      localStorage.setItem(SYSTEM_ADMINS_STORAGE_KEY, JSON.stringify([ROOT_SYSTEM_ADMIN]));
+      return [ROOT_SYSTEM_ADMIN];
+    }
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      // Đảm bảo Nguyễn Đức Kiên luôn có mặt trong danh sách (ít nhất 1 suất gốc) và luôn đồng bộ thông tin chuẩn
+      const rootIdx = parsed.findIndex(
+        (a: any) =>
+          a.code === ROOT_SYSTEM_ADMIN.code ||
+          a.email?.toLowerCase() === ROOT_SYSTEM_ADMIN.email?.toLowerCase() ||
+          a.isRoot === true
+      );
+      if (rootIdx === -1) {
+        parsed.unshift(ROOT_SYSTEM_ADMIN);
+      } else {
+        parsed[rootIdx] = { ...ROOT_SYSTEM_ADMIN, ...parsed[rootIdx], position: ROOT_SYSTEM_ADMIN.position, department: ROOT_SYSTEM_ADMIN.department, email: ROOT_SYSTEM_ADMIN.email, name: ROOT_SYSTEM_ADMIN.name };
+      }
+      return parsed.slice(0, 2);
+    }
+  } catch (e) {
+    console.error("Lỗi đọc danh sách Quản trị viên hệ thống:", e);
+  }
+  return [ROOT_SYSTEM_ADMIN];
+}
+
+/**
+ * Lưu danh sách Quản trị viên hệ thống (Tối đa 2 tài khoản, không được rỗng)
+ */
+export function saveStoredSystemAdmins(slots: SystemAdminSlot[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (!slots || slots.length === 0) {
+      slots = [ROOT_SYSTEM_ADMIN];
+    }
+    const sanitized = slots.slice(0, 2);
+    localStorage.setItem(SYSTEM_ADMINS_STORAGE_KEY, JSON.stringify(sanitized));
+    window.dispatchEvent(new Event("system-admins-changed"));
+  } catch (e) {
+    console.error("Lỗi lưu danh sách Quản trị viên hệ thống:", e);
+  }
+}
+
+/**
+ * Kiểm tra xem một user cụ thể có sở hữu Quyền hệ thống (System Admin) hay không
+ */
+export function checkIsSystemAdmin(user: any): boolean {
+  if (!user) return false;
+  const userCode = user.code || "";
+  const userEmail = (user.email || "").toLowerCase();
+  const userName = user.name || "";
+
+  // 1. Nguyễn Đức Kiên luôn auto có quyền hệ thống (Root Admin bảo hộ)
+  if (
+    userCode === ROOT_SYSTEM_ADMIN.code ||
+    userEmail === ROOT_SYSTEM_ADMIN.email?.toLowerCase() ||
+    userEmail === "kien8438@gmail.com" ||
+    userName === "Nguyễn Đức Kiên"
+  ) {
+    return true;
+  }
+
+  // 2. Kiểm tra trong danh sách slots đã lưu
+  const slots = getStoredSystemAdmins();
+  return slots.some(
+    (slot) =>
+      (slot.code && slot.code === userCode) ||
+      (slot.email && slot.email.toLowerCase() === userEmail) ||
+      (slot.name && slot.name === userName)
+  );
+}
+
+/**
+ * Gán thêm 1 tài khoản vào suất Quản trị viên hệ thống (Chỉ gán được khi chưa đủ 2)
+ */
+export function assignSystemAdmin(employee: any): { success: boolean; message: string } {
+  const current = getStoredSystemAdmins();
+  if (current.length >= 2) {
+    return {
+      success: false,
+      message: "Hệ thống đã đạt giới hạn tối đa 2 Quản trị viên hệ thống. Vui lòng chuyển đổi suất nếu muốn thay thế.",
+    };
+  }
+  const isAlready = current.some(
+    (s) =>
+      (s.code && s.code === employee.code) ||
+      (s.email && s.email.toLowerCase() === (employee.email || "").toLowerCase()) ||
+      (s.name && s.name === employee.name)
+  );
+  if (isAlready) {
+    return { success: false, message: "Nhân sự này đã sở hữu Quyền hệ thống rồi." };
+  }
+
+  const newSlot: SystemAdminSlot = {
+    code: employee.code || employee.id,
+    name: employee.name,
+    email: employee.email,
+    avatar: employee.avatar,
+    department: employee.department,
+    position: employee.position || employee.jobTitle || "Cán bộ nhân viên",
+    isRoot: false,
+    assignedAt: new Date().toLocaleDateString("vi-VN"),
+  };
+
+  saveStoredSystemAdmins([...current, newSlot]);
+  return { success: true, message: `Đã cấp Quyền hệ thống thành công cho ${employee.name}!` };
+}
+
+/**
+ * Chuyển đổi suất Quản trị viên hệ thống từ người cũ sang người mới
+ */
+export function transferSystemAdmin(fromCode: string, toEmployee: any): { success: boolean; message: string } {
+  const current = getStoredSystemAdmins();
+  const index = current.findIndex((s) => s.code === fromCode);
+  if (index === -1) {
+    return { success: false, message: "Không tìm thấy tài khoản quản trị viên cần chuyển đổi." };
+  }
+
+  const isAlready = current.some(
+    (s) =>
+      (s.code && s.code === toEmployee.code) ||
+      (s.email && s.email.toLowerCase() === (toEmployee.email || "").toLowerCase()) ||
+      (s.name && s.name === toEmployee.name)
+  );
+  if (isAlready) {
+    return { success: false, message: "Người được chuyển giao đã sở hữu Quyền hệ thống rồi." };
+  }
+
+  const oldSlot = current[index];
+  const newSlot: SystemAdminSlot = {
+    code: toEmployee.code || toEmployee.id,
+    name: toEmployee.name,
+    email: toEmployee.email,
+    avatar: toEmployee.avatar,
+    department: toEmployee.department,
+    position: toEmployee.position || toEmployee.jobTitle || "Cán bộ nhân viên",
+    isRoot: oldSlot.isRoot, // giữ nguyên tính chất nếu Kiên ủy quyền
+    assignedAt: new Date().toLocaleDateString("vi-VN"),
+  };
+
+  current[index] = newSlot;
+  saveStoredSystemAdmins([...current]);
+  return { success: true, message: `Đã chuyển giao Quyền hệ thống từ ${oldSlot.name} sang ${toEmployee.name} thành công!` };
+}
+
+/**
+ * Thu hồi suất Quản trị viên hệ thống (Chỉ thu hồi khi đang có đủ 2 người, không bao giờ để rỗng)
+ */
+export function revokeSystemAdmin(code: string): { success: boolean; message: string } {
+  const current = getStoredSystemAdmins();
+  if (current.length <= 1) {
+    return {
+      success: false,
+      message: "Không thể thu hồi! Hệ thống bắt buộc phải có ít nhất 1 Quản trị viên hệ thống.",
+    };
+  }
+
+  const target = current.find((s) => s.code === code);
+  if (!target) {
+    return { success: false, message: "Không tìm thấy tài khoản để thu hồi." };
+  }
+
+  if (target.isRoot) {
+    return {
+      success: false,
+      message: "Không thể thu hồi tài khoản của Người khởi tạo hệ thống. Bạn chỉ có thể chuyển đổi suất này.",
+    };
+  }
+
+  const updated = current.filter((s) => s.code !== code);
+  saveStoredSystemAdmins(updated);
+  return { success: true, message: `Đã thu hồi Quyền hệ thống của ${target.name}.` };
+}
+

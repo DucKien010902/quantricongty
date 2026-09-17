@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Users,
   UserCheck,
@@ -25,6 +25,7 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import { Employee } from "@/app/data/seed-employees";
+import { useApp } from "@/app/context/AppContext";
 
 interface DashboardViewProps {
   employees: Employee[];
@@ -53,8 +54,40 @@ export default function DashboardView({
   onGoToEmployees,
   onGoToDepartments,
 }: DashboardViewProps) {
+  const { currentUser } = useApp();
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [readingNotice, setReadingNotice] = useState<Notice | null>(null);
+
+  const currentEmployee = useMemo(() => {
+    if (!currentUser) return null;
+    return (
+      employees?.find(
+        (e) =>
+          (e.code && e.code === currentUser.code) ||
+          (e.email && e.email.toLowerCase() === (currentUser.email || "").toLowerCase()) ||
+          e.name === currentUser.name
+      ) || currentUser
+    );
+  }, [currentUser, employees]);
+
+  const canAccessApprovals = useMemo(() => {
+    const emp = currentEmployee || currentUser;
+    if (!emp) return false;
+    const role = (emp.role || "").toUpperCase();
+    if (role === "ADMIN") return true;
+
+    const pos = (emp.position || emp.jobTitle || "").toLowerCase();
+    const level = (emp.positionLevel || "").toLowerCase();
+
+    const isLeaderTitle =
+      pos.includes("trưởng") ||
+      pos.includes("giám đốc") ||
+      pos.includes("phụ trách") ||
+      level.includes("trưởng") ||
+      level.includes("quản trị");
+
+    return isLeaderTitle || role === "LEADER" || role === "MANAGER";
+  }, [currentUser, currentEmployee]);
 
   const total = employees.length > 0 ? employees.length : 12;
   const activeCount = employees.filter((e) => e.status === "active").length || 10;
@@ -233,16 +266,16 @@ export default function DashboardView({
 
         {/* Card 3 */}
         <a
-          href="/approvals"
+          href={canAccessApprovals ? "/approvals" : "/leave"}
           className="p-5 rounded-2xl bg-white border border-slate-200/90 hover:border-amber-300 shadow-2xs hover:shadow-xs transition-all group block"
         >
           <div className="flex items-start justify-between">
             <div>
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Chờ Phê Duyệt
+                {canAccessApprovals ? "Chờ Phê Duyệt" : "Đơn Phép Cá Nhân"}
               </span>
               <div className="text-3xl font-extrabold text-slate-900 tracking-tight mt-1 font-mono">
-                3
+                {canAccessApprovals ? 3 : 1}
               </div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold border border-amber-100 group-hover:bg-amber-500 group-hover:text-white transition-colors">
@@ -250,9 +283,11 @@ export default function DashboardView({
             </div>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span className="text-slate-600 font-medium">Hồ sơ chờ duyệt</span>
+            <span className="text-slate-600 font-medium">
+              {canAccessApprovals ? "Hồ sơ chờ duyệt" : "Trạng thái đơn phép"}
+            </span>
             <span className="text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-              Cần xử lý
+              {canAccessApprovals ? "Cần xử lý" : "Theo dõi"}
             </span>
           </div>
         </a>
@@ -429,15 +464,27 @@ export default function DashboardView({
               <span className="text-xs font-bold text-slate-800">Tạo Đơn Phép</span>
             </a>
 
-            <a
-              href="/approvals"
-              className="p-3.5 rounded-xl border border-slate-200/80 bg-white hover:bg-slate-50 transition-all flex flex-col items-center text-center gap-2 group"
-            >
-              <div className="w-9 h-9 rounded-lg bg-blue-50 text-[#1b365d] flex items-center justify-center border border-blue-100 group-hover:bg-[#1b365d] group-hover:text-white transition-colors">
-                <CheckSquare className="w-4.5 h-4.5" />
-              </div>
-              <span className="text-xs font-bold text-slate-800">Duyệt Hồ Sơ</span>
-            </a>
+            {canAccessApprovals ? (
+              <a
+                href="/approvals"
+                className="p-3.5 rounded-xl border border-slate-200/80 bg-white hover:bg-slate-50 transition-all flex flex-col items-center text-center gap-2 group"
+              >
+                <div className="w-9 h-9 rounded-lg bg-blue-50 text-[#1b365d] flex items-center justify-center border border-blue-100 group-hover:bg-[#1b365d] group-hover:text-white transition-colors">
+                  <CheckSquare className="w-4.5 h-4.5" />
+                </div>
+                <span className="text-xs font-bold text-slate-800">Duyệt Hồ Sơ</span>
+              </a>
+            ) : (
+              <a
+                href="/leave"
+                className="p-3.5 rounded-xl border border-slate-200/80 bg-white hover:bg-slate-50 transition-all flex flex-col items-center text-center gap-2 group"
+              >
+                <div className="w-9 h-9 rounded-lg bg-blue-50 text-[#1b365d] flex items-center justify-center border border-blue-100 group-hover:bg-[#1b365d] group-hover:text-white transition-colors">
+                  <CheckSquare className="w-4.5 h-4.5" />
+                </div>
+                <span className="text-xs font-bold text-slate-800">Đơn Của Tôi</span>
+              </a>
+            )}
 
             <a
               href="/attendance"

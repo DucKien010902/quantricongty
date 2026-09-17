@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import {
   Mail,
@@ -62,6 +63,11 @@ export default function EmployeeTable({
     top: number;
     right: number;
   } | null>(null);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Tìm phòng ban khớp trong danh sách để gán value cho thẻ <select>
   const matchedDeptInList = departments.find(
@@ -374,9 +380,12 @@ export default function EmployeeTable({
                           if (activeMenuEmp?.emp.id === emp.id) {
                             setActiveMenuEmp(null);
                           } else {
+                            const menuHeight = 160;
+                            const spaceBelow = window.innerHeight - rect.bottom;
+                            const showAbove = spaceBelow < menuHeight && rect.top > menuHeight;
                             setActiveMenuEmp({
                               emp,
-                              top: rect.bottom + 6,
+                              top: showAbove ? rect.top - menuHeight - 6 : rect.bottom + 6,
                               right: Math.max(12, window.innerWidth - rect.right),
                             });
                           }
@@ -474,7 +483,7 @@ export default function EmployeeTable({
       )}
 
       {/* MENU THAO TÁC NỔI KHI BẤM NÚT 3 CHẤM */}
-      {activeMenuEmp && (
+      {activeMenuEmp && mounted && createPortal(
         <>
           <div
             className="fixed inset-0 z-40"
@@ -538,7 +547,8 @@ export default function EmployeeTable({
               </button>
             )}
           </div>
-        </>
+        </>,
+        document.body
       )}
 
     </div>

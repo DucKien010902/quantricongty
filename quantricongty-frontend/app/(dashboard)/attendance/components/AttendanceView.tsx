@@ -2,40 +2,60 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  CalendarCheck,
   Clock,
-  UserCheck,
-  AlertTriangle,
-  Download,
-  Filter,
-  RefreshCw,
-  Search,
   CheckCircle2,
-  Calendar,
-  Upload,
-  Server,
-  Wifi,
   FileSpreadsheet,
-  AlertCircle,
-  Eye,
-  X,
-  Sparkles,
-  ArrowRight,
-  ShieldCheck,
-  HelpCircle,
-  ChevronLeft,
-  ChevronRight,
-  Trash2,
+  Server,
+  RefreshCw,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Employee } from "@/app/data/seed-employees";
+import { usePermission } from "@/app/hooks/usePermission";
+
+import AttendanceHeader from "./AttendanceHeader";
+import AttendanceStatsCards from "./AttendanceStatsCards";
+import AttendanceDailyTable from "./AttendanceDailyTable";
+import AttendanceMonthlyTable from "./AttendanceMonthlyTable";
+import AttendanceRawLogsTable from "./AttendanceRawLogsTable";
+import DeviceSyncModal from "./DeviceSyncModal";
+import ExcelImportModal from "./ExcelImportModal";
 
 interface AttendanceViewProps {
   employees: Employee[];
   departments?: any[];
+  currentUser?: any;
 }
 
-export default function AttendanceView({ employees, departments = [] }: AttendanceViewProps) {
+export default function AttendanceView({
+  employees,
+  departments = [],
+  currentUser,
+}: AttendanceViewProps) {
+  // Quyền từ Ma trận phân quyền hệ thống (RBAC)
+  const { can } = usePermission();
+  const canViewAll = can("attendance.view_all");
+  const canManage = can("attendance.manage");
+  const canExport = can("attendance.export");
+
+  // Phạm vi xem: Toàn công ty (Admin, HCNS) hoặc Cá nhân (Nhân viên)
+  const isHRAdmin = canViewAll;
+
+  // Matched employee of logged in user
+  const currentEmployee = useMemo(() => {
+    if (!currentUser) return null;
+    return (
+      employees.find(
+        (e) =>
+          (e.code && e.code === currentUser.code) ||
+          (e.email && e.email.toLowerCase() === (currentUser.email || "").toLowerCase()) ||
+          e.name === currentUser.name
+      ) || currentUser
+    );
+  }, [currentUser, employees]);
+
+  const myCode = currentEmployee?.code || currentUser?.code || "";
+  const myAttendanceCode = currentEmployee?.attendanceCode || currentUser?.attendanceCode || "";
+
   // Tab: 'daily' | 'monthly' | 'raw'
   const [activeTab, setActiveTab] = useState<"daily" | "monthly" | "raw">("daily");
   const [selectedMonth, setSelectedMonth] = useState("2026-09");
@@ -50,7 +70,6 @@ export default function AttendanceView({ employees, departments = [] }: Attendan
   const [rawTotal, setRawTotal] = useState(0);
   const [rawPage, setRawPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [attendanceConfig, setAttendanceConfig] = useState<any>(null);
 
   // Modals
   const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
@@ -65,12 +84,6 @@ export default function AttendanceView({ employees, departments = [] }: Attendan
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
 
-  // Excel import state
-  const [excelFile, setExcelFile] = useState<File | null>(null);
-  const [excelPreview, setExcelPreview] = useState<any[]>([]);
-  const [isImporting, setIsImporting] = useState(false);
-  const [importResult, setImportResult] = useState<any>(null);
-
   // Notification Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const showToast = (msg: string) => {
@@ -78,64 +91,41 @@ export default function AttendanceView({ employees, departments = [] }: Attendan
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Helper to format weekly off days
-  const formatWeeklyOffDays = (str?: string) => {
-    if (str === undefined || str === null || str === "0,6") return "T7, CN";
-    const days = str.split(",").map((s) => s.trim()).filter(Boolean);
-    if (days.length === 0) return "Không nghỉ (Làm cả tuần)";
-    const map: Record<string, string> = {
-      "0": "CN",
-      "1": "T2",
-      "2": "T3",
-      "3": "T4",
-      "4": "T5",
-      "5": "T6",
-      "6": "T7",
-    };
-    return days.map((d) => map[d] || d).join(", ");
-  };
-
   // Load Data on tab or month change
   useEffect(() => {
     loadAllData();
-  }, [selectedMonth, filterDept, filterUser, rawPage]);
+  }, [selectedMonth, filterDept, filterUser, rawPage, isHRAdmin, myCode]);
 
   const loadAllData = async () => {
     setIsLoading(true);
     try {
+      const queryUser = isHRAdmin ? filterUser : myCode || "NONE";
+      const queryDept = isHRAdmin ? filterDept : "ALL";
+
       // 1. Daily data
       const dailyRes = await fetch(
-        `http://localhost:5002/api/attendance/daily?month=${selectedMonth}&userId=${filterUser}&department=${filterDept}`
+        `http://localhost:5002/api/attendance/daily?month=${selectedMonth}&userId=${queryUser}&department=${queryDept}`
       );
       if (dailyRes.ok) {
-        const data = await dailyRes.json();
-        setDailyData(data);
+        setDailyData(await dailyRes.json());
       }
 
       // 2. Monthly summary
       const monthlyRes = await fetch(
-        `http://localhost:5002/api/attendance/monthly-summary?month=${selectedMonth}`
+        `http://localhost:5002/api/attendance/monthly-summary?month=${selectedMonth}&userId=${queryUser}&department=${queryDept}`
       );
       if (monthlyRes.ok) {
-        const data = await monthlyRes.json();
-        setMonthlySummary(data);
+        setMonthlySummary(await monthlyRes.json());
       }
 
       // 3. Raw logs
       const rawRes = await fetch(
-        `http://localhost:5002/api/attendance/raw-logs?month=${selectedMonth}&userId=${filterUser}&page=${rawPage}&limit=50`
+        `http://localhost:5002/api/attendance/raw-logs?month=${selectedMonth}&userId=${queryUser}&page=${rawPage}&limit=50`
       );
       if (rawRes.ok) {
         const data = await rawRes.json();
         setRawLogs(data.logs || []);
         setRawTotal(data.total || 0);
-      }
-
-      // 4. Active Shift & Days Off Config
-      const configRes = await fetch(`http://localhost:5002/api/attendance/config`);
-      if (configRes.ok) {
-        const cfg = await configRes.json();
-        setAttendanceConfig(cfg);
       }
     } catch (e) {
       console.warn("Backend attendance endpoint not reachable, keeping local state:", e);
@@ -146,7 +136,12 @@ export default function AttendanceView({ employees, departments = [] }: Attendan
 
   // Clear all data (Reset to zero)
   const handleClearAll = async () => {
-    if (!window.confirm("Bạn có chắc chắn muốn XÓA SẠCH toàn bộ dữ liệu chấm công (kể cả dữ liệu mẫu) để kiểm thử dữ liệu thực tế không?")) return;
+    if (
+      !window.confirm(
+        "Bạn có chắc chắn muốn XÓA SẠCH toàn bộ dữ liệu chấm công (kể cả dữ liệu mẫu) để kiểm thử dữ liệu thực tế không?"
+      )
+    )
+      return;
     try {
       const res = await fetch("http://localhost:5002/api/attendance/clear-all", { method: "POST" });
       if (res.ok) {
@@ -210,7 +205,7 @@ export default function AttendanceView({ employees, departments = [] }: Attendan
     }
   };
 
-  // Mock / Seed sync simulation (useful when testing without physical hardware)
+  // Mock / Seed sync simulation
   const handleSeedData = async () => {
     setIsSyncing(true);
     try {
@@ -220,74 +215,19 @@ export default function AttendanceView({ employees, departments = [] }: Attendan
         await loadAllData();
         setIsDeviceModalOpen(false);
       }
-    } catch (e) {
+    } catch {
       alert("Lỗi khi nạp dữ liệu mẫu!");
     } finally {
       setIsSyncing(false);
     }
   };
 
-  // Excel File Parsing & Preview
-  const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setExcelFile(file);
-    setImportResult(null);
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: "binary" });
-        const wsName = wb.SheetNames[0];
-        const ws = wb.Sheets[wsName];
-        const rows: any[] = XLSX.utils.sheet_to_json(ws, { header: 1 });
-
-        if (rows.length > 1) {
-          // Take header and first 10 rows for preview
-          setExcelPreview(rows.slice(0, 8));
-        }
-      } catch (err) {
-        console.error("Error previewing Excel:", err);
-      }
-    };
-    reader.readAsBinaryString(file);
-  };
-
-  // Submit Excel Import
-  const handleImportExcel = async () => {
-    if (!excelFile) return;
-    setIsImporting(true);
-    setImportResult(null);
-
-    const formData = new FormData();
-    formData.append("file", excelFile);
-
-    try {
-      const res = await fetch("http://localhost:5002/api/attendance/import-excel", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      setImportResult(data);
-      if (data.inserted !== undefined) {
-        showToast(
-          `Nhập thành công ${data.total} dòng (${data.inserted} mới, ${data.skipped} trùng lặp đã bỏ qua)!`
-        );
-        await loadAllData();
-      }
-    } catch (err: any) {
-      alert("Lỗi khi nhập file Excel: " + err.message);
-    } finally {
-      setIsImporting(false);
-    }
-  };
-
   // Export Detail or Monthly Excel
   const handleExportExcel = () => {
-    if (activeTab === "monthly" && monthlySummary?.data) {
-      const exportRows = monthlySummary.data.map((item: any) => ({
-        "STT": item.stt,
+    if (activeTab === "monthly" && (isHRAdmin ? monthlySummary?.data : displayMonthlyData)) {
+      const source = isHRAdmin ? monthlySummary.data : displayMonthlyData;
+      const exportRows = source.map((item: any) => ({
+        STT: item.stt,
         "Mã Nhân Viên": item.userId,
         "Họ và Tên": item.name,
         "Ban / Phòng": item.department,
@@ -303,17 +243,21 @@ export default function AttendanceView({ employees, departments = [] }: Attendan
 
       const ws = XLSX.utils.json_to_sheet(exportRows);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, `TongHopCong_${selectedMonth}`);
-      XLSX.writeFile(wb, `Bang_Tong_Hop_Cong_${selectedMonth}.xlsx`);
+      const sheetName = isHRAdmin ? `TongHopCong_${selectedMonth}` : `Cong_${myCode}_${selectedMonth}`;
+      const fileName = isHRAdmin
+        ? `Bang_Tong_Hop_Cong_${selectedMonth}.xlsx`
+        : `Bang_Cong_Ca_Nhan_${myCode}_${selectedMonth}.xlsx`;
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      XLSX.writeFile(wb, fileName);
       showToast("Đã xuất file Bảng Tổng Hợp Công Tháng thành công!");
     } else {
       const exportRows = filteredDailyData.map((d: any, idx: number) => ({
-        "STT": idx + 1,
+        STT: idx + 1,
         "Mã Nhân Viên": d.userId,
         "Họ và Tên": d.name,
         "Ban / Phòng": d.department,
-        "Ngày": d.date,
-        "Thứ": d.weekday,
+        Ngày: d.date,
+        Thứ: d.weekday,
         "Giờ Vào": d.firstIn || "--:--",
         "Giờ Ra": d.lastOut || "--:--",
         "Giờ Làm": formatWorkTime(d),
@@ -326,13 +270,17 @@ export default function AttendanceView({ employees, departments = [] }: Attendan
 
       const ws = XLSX.utils.json_to_sheet(exportRows);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, `ChiTiet_${selectedMonth}`);
-      XLSX.writeFile(wb, `Bang_Chi_Tiet_Cham_Cong_${selectedMonth}.xlsx`);
+      const sheetName = isHRAdmin ? `ChiTiet_${selectedMonth}` : `ChiTiet_${myCode}_${selectedMonth}`;
+      const fileName = isHRAdmin
+        ? `Bang_Chi_Tiet_Cham_Cong_${selectedMonth}.xlsx`
+        : `Bang_Chi_Tiet_Cham_Cong_Ca_Nhan_${myCode}_${selectedMonth}.xlsx`;
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      XLSX.writeFile(wb, fileName);
       showToast("Đã xuất file Báo Cáo Chi Tiết Chấm Công thành công!");
     }
   };
 
-  // Filter daily data by search query and ensure no future dates beyond latest available data
+  // Filter daily data by search query and enforce personal filter for non-HR
   const filteredDailyData = useMemo(() => {
     const now = new Date();
     const yyyy = now.getFullYear();
@@ -342,20 +290,52 @@ export default function AttendanceView({ employees, departments = [] }: Attendan
     const currentMonthStr = `${yyyy}-${mm}`;
 
     return dailyData.filter((item) => {
-      // Chỉ hiện dữ liệu tới ngày hiện muộn nhất được kéo về (không hiện ngày tương lai)
       if (item.date && selectedMonth === currentMonthStr && item.date > todayStr) {
         return false;
       }
-      const matchesSearch =
+      if (!isHRAdmin) {
+        const isMine =
+          (item.userId && item.userId === myCode) ||
+          (item.attendanceCode && item.attendanceCode === myAttendanceCode) ||
+          (currentEmployee?.name && item.name === currentEmployee.name);
+        if (!isMine) return false;
+      }
+      return (
         searchQuery === "" ||
         item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.userId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.date?.includes(searchQuery);
-      return matchesSearch;
+        item.date?.includes(searchQuery)
+      );
     });
-  }, [dailyData, searchQuery, selectedMonth]);
+  }, [dailyData, searchQuery, selectedMonth, isHRAdmin, myCode, myAttendanceCode, currentEmployee]);
 
-  // Helper tính thứ trong tuần nếu dữ liệu chưa có
+  // Display Monthly summary data (filtered to self if non-HR)
+  const displayMonthlyData = useMemo(() => {
+    if (!monthlySummary?.data) return [];
+    if (!isHRAdmin) {
+      return monthlySummary.data.filter(
+        (row: any) =>
+          row.userId === myCode ||
+          row.attendanceCode === myAttendanceCode ||
+          (currentEmployee?.name && row.name === currentEmployee.name)
+      );
+    }
+    return monthlySummary.data;
+  }, [monthlySummary, isHRAdmin, myCode, myAttendanceCode, currentEmployee]);
+
+  // Display Raw Logs data (filtered to self if non-HR)
+  const displayRawLogs = useMemo(() => {
+    if (!isHRAdmin) {
+      return rawLogs.filter(
+        (l: any) =>
+          l.userId === myCode ||
+          l.attendanceCode === myAttendanceCode ||
+          (currentEmployee?.name && l.name === currentEmployee.name)
+      );
+    }
+    return rawLogs;
+  }, [rawLogs, isHRAdmin, myCode, myAttendanceCode, currentEmployee]);
+
   const getWeekdayLabel = (dateStr: string, fallback?: string): string => {
     if (fallback && fallback.trim() !== "") return fallback;
     if (!dateStr) return "";
@@ -370,10 +350,8 @@ export default function AttendanceView({ employees, departments = [] }: Attendan
     }
   };
 
-  // Helper định dạng giờ làm: "8h 15p" thay vì số thập phân "8.25h" hoặc "8,25 h"
   const formatWorkTime = (row: any): string => {
     if (row.workTimeText && row.workTimeText !== "0h") return row.workTimeText;
-    // Nếu có firstIn và lastOut hợp lệ
     if (row.firstIn && row.lastOut && (row.punchCount === undefined || row.punchCount >= 2)) {
       try {
         const parseSec = (t: string) => {
@@ -393,10 +371,9 @@ export default function AttendanceView({ employees, departments = [] }: Attendan
           }
         }
       } catch {
-        // fallback to workHours
+        // fallback
       }
     }
-    // Dựa vào workHours số nếu có (ví dụ 8.25 -> 8h 15p)
     if (row.workHours !== undefined && row.workHours !== null && Number(row.workHours) > 0) {
       const num = Number(row.workHours);
       const h = Math.floor(num);
@@ -404,72 +381,6 @@ export default function AttendanceView({ employees, departments = [] }: Attendan
       return `${h}h ${String(m).padStart(2, "0")}p`;
     }
     return "0h";
-  };
-
-  // Status Helpers matching CHAMCONG_WEB_SPECIFICATION.md
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "DU_CONG":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Đủ công (1.0)
-          </span>
-        );
-      case "THIEU_PHUT":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            Thiếu phút (0.0)
-          </span>
-        );
-      case "THIEU_GIO_RA":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-            Quên quẹt ra (0.0)
-          </span>
-        );
-      case "THIEU_GIO_VAO":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-            Quên quẹt vào (0.0)
-          </span>
-        );
-      case "MISS":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-            Vắng mặt (0.0)
-          </span>
-        );
-      case "CUOI_TUAN":
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
-            Nghỉ cuối tuần
-          </span>
-        );
-      case "NGHI_LE":
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">
-            Nghỉ Lễ / Cty
-          </span>
-        );
-      case "NGHI_PHEP":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-            Nghỉ phép (P - 1.0)
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs text-slate-500 bg-slate-100">
-            {status}
-          </span>
-        );
-    }
   };
 
   const getStatusText = (status: string) => {
@@ -496,12 +407,13 @@ export default function AttendanceView({ employees, departments = [] }: Attendan
   };
 
   // Summary counts
-  const totalStandardDays = monthlySummary?.standardDays || 21;
-  const totalPunchRecords = rawTotal || 126;
-  const totalDuCong = dailyData.filter((d) => d.status === "DU_CONG").length;
-  const totalThieuPhut = dailyData.filter(
+  const totalStandardDays = monthlySummary?.standardDays || 0;
+  const statsSource = isHRAdmin ? dailyData : filteredDailyData;
+  const totalDuCong = statsSource.filter((d) => d.status === "DU_CONG").length;
+  const totalThieuPhut = statsSource.filter(
     (d) => d.status === "THIEU_PHUT" || d.status === "THIEU_GIO_RA" || d.status === "THIEU_GIO_VAO"
   ).length;
+  const totalPunchRecords = isHRAdmin ? rawTotal || 0 : displayRawLogs.length;
 
   return (
     <div className="space-y-6 animate-fade-in relative">
@@ -514,151 +426,28 @@ export default function AttendanceView({ employees, departments = [] }: Attendan
       )}
 
       {/* HEADER BANNER */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <CalendarCheck className="w-6 h-6 text-[#1b365d]" />
-            Quản trị chấm công
-          </h1>
-          <p className="text-sm text-slate-500 font-medium mt-1">
-            Bảng chấm công và quản lý dữ liệu quẹt thẻ nhân sự
-          </p>
-        </div>
-
-        {/* TOP ACTION BUTTONS */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Month Selector */}
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3.5 py-2 shadow-2xs">
-            <Calendar className="w-4 h-4 text-slate-400" />
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="text-xs font-bold text-slate-800 bg-transparent focus:outline-none cursor-pointer"
-            >
-              <option value="2026-09">Tháng 09/2026</option>
-              <option value="2026-08">Tháng 08/2026</option>
-              <option value="2026-10">Tháng 10/2026</option>
-            </select>
-          </div>
-
-          {/* Action 1: Kéo máy chấm công */}
-          <button
-            onClick={() => setIsDeviceModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl bg-[#1b365d] hover:bg-[#152a4a] text-white shadow-md shadow-[#1b365d]/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <Server className="w-4 h-4 text-blue-200" />
-            <span>Kéo dữ liệu máy chấm công</span>
-          </button>
-
-          {/* Action 2: Nhập Excel */}
-          <button
-            onClick={() => setIsExcelModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <Upload className="w-4 h-4" />
-            <span>Nhập file Excel</span>
-          </button>
-
-          {/* Action 3: Xuất Excel */}
-          <button
-            onClick={handleExportExcel}
-            className="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 shadow-2xs transition-all"
-            title="Xuất bảng tính Excel theo tab hiện tại"
-          >
-            <Download className="w-4 h-4 text-slate-500" />
-            <span>Xuất Excel</span>
-          </button>
-
-          {/* Action 4: Reset */}
-          <button
-            onClick={handleClearAll}
-            className="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-rose-200/80 shadow-2xs transition-all"
-            title="Xóa toàn bộ dữ liệu để kiểm thử dữ liệu thực tế"
-          >
-            <Trash2 className="w-4 h-4 text-rose-500" />
-            <span>Reset dữ liệu</span>
-          </button>
-        </div>
-      </div>
+      <AttendanceHeader
+        isHRAdmin={isHRAdmin}
+        canManage={canManage}
+        canExport={canExport}
+        canViewAll={canViewAll}
+        currentEmployee={currentEmployee}
+        currentUser={currentUser}
+        selectedMonth={selectedMonth}
+        onMonthChange={setSelectedMonth}
+        onOpenDeviceModal={() => setIsDeviceModalOpen(true)}
+        onOpenExcelModal={() => setIsExcelModalOpen(true)}
+        onExportExcel={handleExportExcel}
+        onClearAll={handleClearAll}
+      />
 
       {/* TOP 4 STATS CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1 */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-slate-600">Chuẩn công tháng</span>
-            <div className="p-2.5 rounded-xl bg-blue-50 text-[#1b365d]">
-              <Calendar className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl sm:text-4xl font-extrabold text-[#1b365d] font-mono">
-                {totalStandardDays}
-              </span>
-              <span className="text-sm font-medium text-slate-500">ngày</span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1 font-medium">Trừ 8 ngày nghỉ T7/CN & 1 ngày Lễ</p>
-          </div>
-        </div>
-
-        {/* Card 2 */}
-        <div className="bg-white p-5 rounded-2xl border border-emerald-200/90 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-slate-600">Lượt đủ công (1.0)</span>
-            <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl sm:text-4xl font-extrabold text-emerald-600 font-mono">
-                {totalDuCong}
-              </span>
-              <span className="text-sm font-medium text-slate-500">lượt</span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1 font-medium">Đạt đủ 8h làm việc theo ca</p>
-          </div>
-        </div>
-
-        {/* Card 3 */}
-        <div className="bg-white p-5 rounded-2xl border border-amber-200/90 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-slate-600">Thiếu phút / Quên quẹt</span>
-            <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600">
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl sm:text-4xl font-extrabold text-amber-600 font-mono">
-                {totalThieuPhut}
-              </span>
-              <span className="text-sm font-medium text-slate-500">lượt</span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1 font-medium">Đi muộn sau 9h hoặc về sớm</p>
-          </div>
-        </div>
-
-        {/* Card 4 */}
-        <div className="bg-white p-5 rounded-2xl border border-purple-200/90 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-slate-600">Lượt chấm công máy</span>
-            <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600">
-              <Clock className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl sm:text-4xl font-extrabold text-purple-700 font-mono">
-                {totalPunchRecords}
-              </span>
-              <span className="text-sm font-medium text-slate-500">bản ghi</span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1 font-medium">Đã lọc trùng lặp tuyệt đối</p>
-          </div>
-        </div>
-      </div>
+      <AttendanceStatsCards
+        totalStandardDays={totalStandardDays}
+        totalDuCong={totalDuCong}
+        totalThieuPhut={totalThieuPhut}
+        totalPunchRecords={totalPunchRecords}
+      />
 
       {/* TAB NAVIGATION */}
       <div className="flex items-center justify-between border-b border-slate-200 bg-white px-3 pt-2 rounded-2xl border">
@@ -674,7 +463,7 @@ export default function AttendanceView({ employees, departments = [] }: Attendan
             <Clock className="w-4 h-4" />
             <span>1. Bảng chấm công chi tiết</span>
             <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[11px] font-mono font-bold text-slate-600">
-              {dailyData.length}
+              {filteredDailyData.length}
             </span>
           </button>
 
@@ -689,7 +478,7 @@ export default function AttendanceView({ employees, departments = [] }: Attendan
             <FileSpreadsheet className="w-4 h-4" />
             <span>2. Bảng tổng hợp công tháng</span>
             <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[11px] font-mono font-bold text-slate-600">
-              {monthlySummary?.data?.length || 0}
+              {displayMonthlyData.length}
             </span>
           </button>
 
@@ -704,7 +493,7 @@ export default function AttendanceView({ employees, departments = [] }: Attendan
             <Server className="w-4 h-4" />
             <span>3. Nhật ký chấm công máy</span>
             <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[11px] font-mono font-bold text-slate-600">
-              {rawTotal}
+              {isHRAdmin ? rawTotal : displayRawLogs.length}
             </span>
           </button>
         </div>
@@ -721,753 +510,79 @@ export default function AttendanceView({ employees, departments = [] }: Attendan
         </button>
       </div>
 
-      {/* ========================================================================= */}
-      {/* TAB 1: BẢNG CHẤM CÔNG CHI TIẾT */}
-      {/* ========================================================================= */}
+      {/* TAB CONTENT */}
       {activeTab === "daily" && (
-        <div className="space-y-4">
-          {/* Filters Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/90 shadow-xs">
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Search */}
-              <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Tìm tên, mã nhân viên..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-3.5 py-2.5 text-xs font-medium rounded-xl border border-slate-200 bg-slate-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 focus:border-[#1b365d] w-52 sm:w-64 text-slate-800"
-                />
-              </div>
-
-              {/* Department Filter */}
-              <select
-                value={filterDept}
-                onChange={(e) => setFilterDept(e.target.value)}
-                className="text-xs py-2.5 px-3.5 rounded-xl border border-slate-200 bg-slate-50/70 focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 font-medium text-slate-700"
-              >
-                <option value="ALL">Tất cả Ban / Phòng</option>
-                {departments.map((d: any) => (
-                  <option key={d._id || d.id || d.name} value={d.name}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-
-              {/* Employee Filter */}
-              <select
-                value={filterUser}
-                onChange={(e) => setFilterUser(e.target.value)}
-                className="text-xs py-2.5 px-3.5 rounded-xl border border-slate-200 bg-slate-50/70 focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 font-medium text-slate-700"
-              >
-                <option value="ALL">Tất cả Nhân sự</option>
-                {employees.map((emp) => (
-                  <option key={emp.code || emp.id} value={emp.code || emp.id}>
-                    {emp.code || emp.id} - {emp.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="text-xs text-slate-500 font-medium">
-              Hiển thị <b className="text-slate-900">{filteredDailyData.length}</b> bản ghi
-            </div>
-          </div>
-
-          {/* Daily Table */}
-          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs border border-slate-200">
-                <thead className="bg-slate-50 text-slate-700 border-b border-slate-200 font-bold tracking-wider text-xs">
-                  <tr className="divide-x divide-slate-200">
-                    <th className="py-3.5 px-4 min-w-[200px]">Nhân sự</th>
-                    <th className="py-3.5 px-4 min-w-[140px]">Ngày & Thứ</th>
-                    <th className="py-3.5 px-3 text-center min-w-[90px]">Giờ vào</th>
-                    <th className="py-3.5 px-3 text-center min-w-[90px]">Giờ ra</th>
-                    <th className="py-3.5 px-3 text-center min-w-[95px]">Giờ làm</th>
-                    <th className="py-3.5 px-3 text-center min-w-[90px]">Thiếu phút</th>
-                    <th className="py-3.5 px-3 text-center min-w-[80px]">Công</th>
-                    <th className="py-3.5 px-3 text-center min-w-[120px]">Ghi chú</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {filteredDailyData.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="py-12 text-center text-slate-500">
-                        Chưa có dữ liệu chấm công cho bộ lọc này. Hãy bấm <b>"Kéo dữ liệu máy chấm công"</b> hoặc <b>"Nhập file Excel"</b>.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredDailyData.map((row: any, idx: number) => {
-                      const isWeekend = row.status === "CUOI_TUAN";
-                      const isHoliday = row.status === "NGHI_LE";
-                      const isLeave = row.status === "NGHI_PHEP";
-
-                      // Hôm nào thiếu công thì cho vàng nhạt lên 2 ô giờ vào, ra
-                      const isThieuCong =
-                        !isWeekend &&
-                        !isHoliday &&
-                        !isLeave &&
-                        (row.workCredit < 1.0 ||
-                          row.missingMinutes > 0 ||
-                          row.status === "THIEU_PHUT" ||
-                          row.status === "THIEU_GIO_RA" ||
-                          row.status === "THIEU_GIO_VAO" ||
-                          row.status === "MISS" ||
-                          !row.firstIn ||
-                          !row.lastOut);
-
-                      const weekdayText = getWeekdayLabel(row.date, row.weekday);
-
-                      return (
-                        <tr
-                          key={idx}
-                          className={`transition-colors divide-x divide-slate-200 ${
-                            isWeekend
-                              ? "bg-slate-50/50 hover:bg-slate-100/50 text-slate-500"
-                              : "hover:bg-slate-50/80"
-                          }`}
-                        >
-                          {/* 1. Nhân sự */}
-                          <td className="py-3.5 px-4 min-w-[200px]">
-                            <div>
-                              <p className={`font-bold text-sm leading-snug ${isWeekend ? "text-slate-700" : "text-slate-900"}`}>
-                                {row.name}
-                              </p>
-                              <p className="text-xs text-slate-500 font-medium mt-0.5">{row.userId}</p>
-                            </div>
-                          </td>
-
-                          {/* 2. Ngày & Thứ */}
-                          <td className="py-3.5 px-4 min-w-[140px]">
-                            <span className="font-semibold text-slate-800 text-[13px]">{row.date}</span>
-                            {weekdayText && (
-                              <span className={`text-xs font-medium ml-1.5 ${isWeekend ? "text-slate-500" : "text-slate-400"}`}>
-                                ({weekdayText})
-                              </span>
-                            )}
-                          </td>
-
-                          {/* 3. Giờ vào */}
-                          <td className="py-3.5 px-3 text-center">
-                            {row.firstIn ? (
-                              <span
-                                className={`inline-block px-3 py-1 rounded-lg font-mono font-normal text-[13.5px] transition-colors ${
-                                  isThieuCong
-                                    ? "bg-[#fef3c7] text-[#92400e] border border-amber-200/80"
-                                    : "bg-slate-100 text-slate-700"
-                                }`}
-                              >
-                                {row.firstIn}
-                              </span>
-                            ) : isThieuCong ? (
-                              <span className="inline-block px-3 py-1 rounded-lg bg-[#fef3c7] text-[#b45309] border border-amber-200/80 font-mono font-normal text-[13.5px]">
-                                --:--:--
-                              </span>
-                            ) : (
-                              <span className="text-slate-300 font-mono font-normal text-[13.5px]">--:--:--</span>
-                            )}
-                          </td>
-
-                          {/* 4. Giờ ra */}
-                          <td className="py-3.5 px-3 text-center">
-                            {row.lastOut ? (
-                              <span
-                                className={`inline-block px-3 py-1 rounded-lg font-mono font-normal text-[13.5px] transition-colors ${
-                                  isThieuCong
-                                    ? "bg-[#fef3c7] text-[#92400e] border border-amber-200/80"
-                                    : "bg-slate-100 text-slate-700"
-                                }`}
-                              >
-                                {row.lastOut}
-                              </span>
-                            ) : isThieuCong ? (
-                              <span className="inline-block px-3 py-1 rounded-lg bg-[#fef3c7] text-[#b45309] border border-amber-200/80 font-mono font-normal text-[13.5px]">
-                                --:--:--
-                              </span>
-                            ) : (
-                              <span className="text-slate-300 font-mono font-normal text-[13.5px]">--:--:--</span>
-                            )}
-                          </td>
-
-                          {/* 5. Giờ làm */}
-                          <td className="py-3.5 px-3 text-center font-mono font-normal whitespace-nowrap text-[13.5px] text-slate-700">
-                            {isWeekend ? (
-                              <span className="text-slate-400 font-normal">-</span>
-                            ) : (
-                              <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 font-normal">
-                                {formatWorkTime(row)}
-                              </span>
-                            )}
-                          </td>
-
-                          {/* 6. Thiếu phút */}
-                          <td className="py-3.5 px-3 text-center font-mono font-normal text-[13.5px]">
-                            {isWeekend ? (
-                              <span className="text-slate-400 font-normal">-</span>
-                            ) : row.missingMinutes > 0 ? (
-                              <span className="text-amber-600 font-normal">-{row.missingMinutes}p</span>
-                            ) : (
-                              <span className="text-emerald-600 font-normal">0p</span>
-                            )}
-                          </td>
-
-                          {/* 7. Công */}
-                          <td className="py-3.5 px-3 text-center font-mono font-normal text-[13.5px]">
-                            {isWeekend ? (
-                              <span className="text-slate-400 font-normal">-</span>
-                            ) : (
-                              <span
-                                className={
-                                  row.workCredit > 0 ? "text-emerald-600 font-normal" : "text-slate-400 font-normal"
-                                }
-                              >
-                                {row.workCredit !== undefined && row.workCredit !== null
-                                  ? Number(row.workCredit).toFixed(1)
-                                  : "0.0"}
-                              </span>
-                            )}
-                          </td>
-
-                          {/* 8. Ghi chú */}
-                          <td
-                            className="py-3.5 px-3 text-xs text-slate-600 max-w-[150px] truncate text-center font-normal"
-                            title={row.note || "--"}
-                          >
-                            {isWeekend ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-500 border border-slate-200/80">
-                                Nghỉ cuối tuần
-                              </span>
-                            ) : isHoliday ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200">
-                                {row.note || "Nghỉ lễ"}
-                              </span>
-                            ) : isLeave ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                                {row.note || "Nghỉ phép"}
-                              </span>
-                            ) : (
-                              row.note || "--"
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <AttendanceDailyTable
+          filteredDailyData={filteredDailyData}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          filterDept={filterDept}
+          onFilterDeptChange={setFilterDept}
+          filterUser={filterUser}
+          onFilterUserChange={setFilterUser}
+          isHRAdmin={isHRAdmin}
+          departments={departments}
+          employees={employees}
+          currentEmployee={currentEmployee}
+          currentUser={currentUser}
+          myCode={myCode}
+          myAttendanceCode={myAttendanceCode}
+          formatWorkTime={formatWorkTime}
+          getWeekdayLabel={getWeekdayLabel}
+        />
       )}
 
-      {/* ========================================================================= */}
-      {/* TAB 2: BẢNG TỔNG HỢP CÔNG THÁNG */}
-      {/* ========================================================================= */}
       {activeTab === "monthly" && (
-        <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
-            <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <FileSpreadsheet className="w-5 h-5 text-[#1b365d]" />
-                  Bảng tổng hợp công Tháng {selectedMonth}
-                </h3>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Chuẩn công tháng: <b className="text-slate-800">{totalStandardDays} ngày</b>. Tổng công = Đi làm + Công tác + Phép.
-                </p>
-              </div>
-
-              <button
-                onClick={handleExportExcel}
-                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 transition-all hover:scale-105 active:scale-95"
-              >
-                <Download className="w-4 h-4" />
-                <span>Xuất Bảng Lương (.xlsx)</span>
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs border border-slate-200">
-                <thead className="bg-slate-50 text-slate-700 border-b border-slate-200 font-bold tracking-wider text-xs">
-                  <tr className="divide-x divide-slate-200">
-                    <th className="py-3.5 px-3 text-center">STT</th>
-                    <th className="py-3.5 px-4">Mã NV</th>
-                    <th className="py-3.5 px-3 text-center">Mã CC</th>
-                    <th className="py-3.5 px-4 min-w-[200px]">Họ và tên</th>
-                    <th className="py-3.5 px-4">Ban / Phòng</th>
-                    <th className="py-3.5 px-3 text-center bg-emerald-50/50 text-emerald-800">
-                      Công đi làm
-                    </th>
-                    <th className="py-3.5 px-3 text-center">Công tác</th>
-                    <th className="py-3.5 px-3 text-center">Công phép</th>
-                    <th className="py-3.5 px-3 text-center bg-blue-50/60 text-[#1b365d]">
-                      Tổng công
-                    </th>
-                    <th className="py-3.5 px-3 text-center">Chuẩn tháng</th>
-                    <th className="py-3.5 px-3 text-center">Tỷ lệ đạt</th>
-                    <th className="py-3.5 px-3 text-center min-w-[100px]">Ghi chú</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {!monthlySummary?.data || monthlySummary.data.length === 0 ? (
-                    <tr>
-                      <td colSpan={12} className="py-12 text-center text-slate-500">
-                        Chưa có dữ liệu tổng hợp cho tháng này.
-                      </td>
-                    </tr>
-                  ) : (
-                    monthlySummary.data.map((row: any) => {
-                      const rate = Math.round((row.tongCong / totalStandardDays) * 100);
-                      return (
-                        <tr key={row.userId} className="hover:bg-slate-50/80 transition-colors divide-x divide-slate-200">
-                          <td className="py-4 px-3 text-center font-bold text-slate-400">
-                            {row.stt}
-                          </td>
-                          <td className="py-4 px-4 font-mono font-bold text-slate-800 text-xs">
-                            {row.userId}
-                          </td>
-                          <td className="py-4 px-3 text-center font-mono font-bold text-[#1b365d]">
-                            <span className="px-2 py-1 rounded-lg bg-blue-50 text-[#1b365d] border border-blue-200 text-xs">
-                              {row.attendanceCode || "--"}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4 font-bold text-slate-900 text-sm">{row.name}</td>
-                          <td className="py-4 px-4 text-slate-700 font-medium">{row.department}</td>
-                          <td className="py-4 px-3 text-center font-bold font-mono text-emerald-700 bg-emerald-50/30 text-sm">
-                            {row.congDiLam.toFixed(1)}
-                          </td>
-                          <td className="py-4 px-3 text-center font-mono text-slate-600 font-medium">
-                            {row.congTac || 0}
-                          </td>
-                          <td className="py-4 px-3 text-center font-mono text-slate-600 font-medium">
-                            {row.congPhep || 0}
-                          </td>
-                          <td className="py-4 px-3 text-center font-mono font-black text-[#1b365d] bg-blue-50/40 text-base">
-                            {row.tongCong.toFixed(1)}
-                          </td>
-                          <td className="py-4 px-3 text-center font-mono text-slate-600 font-bold">
-                            {row.chuanThang}
-                          </td>
-                          <td className="py-4 px-3 text-center">
-                            <span
-                              className={`px-2.5 py-1 rounded-full font-mono text-xs font-bold ${
-                                rate >= 90
-                                  ? "bg-emerald-100 text-emerald-800"
-                                  : rate >= 60
-                                  ? "bg-blue-100 text-blue-800"
-                                  : "bg-amber-100 text-amber-800"
-                              }`}
-                            >
-                              {rate}%
-                            </span>
-                          </td>
-                          <td className="py-4 px-3 text-xs text-slate-500 max-w-[120px] truncate text-center font-medium" title={row.ghiChu || "--"}>
-                            {row.ghiChu || "--"}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <AttendanceMonthlyTable
+          displayMonthlyData={displayMonthlyData}
+          selectedMonth={selectedMonth}
+          totalStandardDays={totalStandardDays}
+          onExportExcel={handleExportExcel}
+        />
       )}
 
-      {/* ========================================================================= */}
-      {/* TAB 3: NHẬT KÝ CHẤM CÔNG MÁY (MACHINE LOGS) */}
-      {/* ========================================================================= */}
       {activeTab === "raw" && (
-        <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
-            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-[#1b365d]" />
-                  Nhật ký chấm công máy
-                </h3>
-              </div>
-
-              <div className="text-xs text-slate-500 font-medium">
-                Tổng cộng: <b className="text-[#1b365d] text-sm">{rawTotal}</b> bản ghi
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs border border-slate-200">
-                <thead className="bg-slate-50 text-slate-700 border-b border-slate-200 font-bold tracking-wider text-xs">
-                  <tr className="divide-x divide-slate-200">
-                    <th className="py-3.5 px-3 text-center">STT</th>
-                    <th className="py-3.5 px-4">Mã NV</th>
-                    <th className="py-3.5 px-3 text-center">Mã CC</th>
-                    <th className="py-3.5 px-4 min-w-[190px]">Họ và tên</th>
-                    <th className="py-3.5 px-4">Thời điểm chấm công</th>
-                    <th className="py-3.5 px-3 text-center">Loại xác thực</th>
-                    <th className="py-3.5 px-3 text-center">Nguồn dữ liệu</th>
-                    <th className="py-3.5 px-4">IP Thiết bị</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {rawLogs.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="py-12 text-center text-slate-500">
-                        Chưa có bản ghi nhật ký chấm công nào.
-                      </td>
-                    </tr>
-                  ) : (
-                    rawLogs.map((log: any, idx: number) => {
-                      const punchType =
-                        log.punch === 1
-                          ? "Khuôn mặt"
-                          : log.punch === 2
-                          ? "Thẻ từ"
-                          : log.punch === 15
-                          ? "Mật mã"
-                          : "Vân tay";
-                      const isUnmapped =
-                        !log.userId ||
-                        log.userId === "" ||
-                        log.userId === "Chưa gán" ||
-                        log.userId === log.attendanceCode ||
-                        log.name === "Chưa gán" ||
-                        log.name?.startsWith("Mã CC") ||
-                        log.name?.startsWith("NV ");
-
-                      return (
-                        <tr key={idx} className="hover:bg-slate-50/80 transition-colors divide-x divide-slate-200">
-                          <td className="py-3.5 px-3 text-center text-slate-400 font-mono font-bold">
-                            {(rawPage - 1) * 50 + idx + 1}
-                          </td>
-                          <td className="py-3.5 px-4">
-                            {isUnmapped ? (
-                              <span className="text-slate-400 italic text-xs font-normal">
-                                Chưa gán
-                              </span>
-                            ) : (
-                              <span className="font-mono font-bold text-slate-800 text-xs">
-                                {log.userId}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-3 text-center font-mono font-bold text-[#1b365d]">
-                            <span className="px-2 py-0.5 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 text-xs">
-                              {log.attendanceCode || "--"}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 min-w-[190px]">
-                            {isUnmapped ? (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                                Chưa gán
-                              </span>
-                            ) : (
-                              <span className="font-bold text-slate-900 text-sm">
-                                {log.name}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-4 font-mono font-bold text-[#1b365d] text-xs">
-                            {log.timestamp}
-                          </td>
-                          <td className="py-3.5 px-3 text-center">
-                            <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200">
-                              {punchType}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-3 text-center">
-                            <span
-                              className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                                log.source === "device"
-                                  ? "bg-blue-50 text-blue-700 border border-blue-200"
-                                  : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              }`}
-                            >
-                              {log.source === "device" ? "Máy chấm công" : "File Excel"}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 font-mono text-slate-600 text-xs font-medium">
-                            {log.deviceIp || "LAN 192.168.1.201"}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Simple Pagination */}
-            {rawTotal > 50 && (
-              <div className="p-3 px-5 border-t border-slate-100 flex items-center justify-between bg-slate-50/30">
-                <span className="text-xs text-slate-500">
-                  Trang {rawPage} / {Math.ceil(rawTotal / 50)}
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => setRawPage((p) => Math.max(1, p - 1))}
-                    disabled={rawPage === 1}
-                    className="p-1 rounded border border-slate-200 disabled:opacity-40"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setRawPage((p) => p + 1)}
-                    disabled={rawPage * 50 >= rawTotal}
-                    className="p-1 rounded border border-slate-200 disabled:opacity-40"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <AttendanceRawLogsTable
+          displayRawLogs={displayRawLogs}
+          rawTotal={rawTotal}
+          rawPage={rawPage}
+          onPageChange={setRawPage}
+          isHRAdmin={isHRAdmin}
+        />
       )}
 
-      {/* ========================================================================= */}
-      {/* MODAL 1: KẾT NỐI & ĐỒNG BỘ MÁY CHẤM CÔNG LAN (PORT 4370) */}
-      {/* ========================================================================= */}
-      {isDeviceModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden">
-            {/* Modal Header */}
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 to-[#1b365d] text-white">
-              <div className="flex items-center gap-2.5">
-                <Server className="w-5 h-5 text-blue-300" />
-                <div>
-                  <h3 className="text-base font-bold">Kéo Dữ Liệu Máy Chấm Công</h3>
-                  <p className="text-xs text-blue-200/80">Kết nối máy chấm công qua mạng LAN</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsDeviceModalOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* DEVICE SYNC MODAL */}
+      <DeviceSyncModal
+        isOpen={isDeviceModalOpen}
+        onClose={() => setIsDeviceModalOpen(false)}
+        deviceIp={deviceIp}
+        setDeviceIp={setDeviceIp}
+        devicePort={devicePort}
+        setDevicePort={setDevicePort}
+        deviceCommKey={deviceCommKey}
+        setDeviceCommKey={setDeviceCommKey}
+        pingStatus={pingStatus}
+        pingMessage={pingMessage}
+        isSyncing={isSyncing}
+        syncFeedback={syncFeedback}
+        onTestConnection={handleTestConnection}
+        onSyncDevice={handleSyncDevice}
+        onSeedData={handleSeedData}
+      />
 
-            {/* Modal Body */}
-            <div className="p-6 space-y-4">
-              {/* IP / Port Form */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Địa chỉ IP Máy
-                  </label>
-                  <input
-                    type="text"
-                    value={deviceIp}
-                    onChange={(e) => setDeviceIp(e.target.value)}
-                    placeholder="192.168.1.201"
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1b365d] font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Cổng (Port)
-                  </label>
-                  <input
-                    type="number"
-                    value={devicePort}
-                    onChange={(e) => setDevicePort(Number(e.target.value))}
-                    placeholder="4370"
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1b365d] font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Mật Mã Kết Nối (Comm Key)
-                </label>
-                <input
-                  type="number"
-                  value={deviceCommKey}
-                  onChange={(e) => setDeviceCommKey(Number(e.target.value))}
-                  placeholder="123456"
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1b365d] font-mono"
-                />
-              </div>
-
-              {/* Ping Feedback */}
-              {pingStatus !== "idle" && (
-                <div
-                  className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 ${
-                    pingStatus === "testing"
-                      ? "bg-slate-100 text-slate-700"
-                      : pingStatus === "success"
-                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                      : "bg-rose-50 text-rose-800 border border-rose-200"
-                  }`}
-                >
-                  <Wifi className={`w-4 h-4 ${pingStatus === "testing" ? "animate-pulse" : ""}`} />
-                  <span>{pingMessage}</span>
-                </div>
-              )}
-
-              {/* Sync Feedback */}
-              {syncFeedback && (
-                <div
-                  className={`p-3 rounded-xl border text-xs font-medium ${
-                    syncFeedback.includes("thành công")
-                      ? "bg-emerald-50 text-emerald-900 border-emerald-200"
-                      : "bg-rose-50 text-rose-900 border-rose-200"
-                  }`}
-                >
-                  {syncFeedback}
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="pt-2 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleTestConnection}
-                  disabled={pingStatus === "testing"}
-                  className="flex-1 px-4 py-2.5 text-xs font-bold rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  Kiểm Tra Kết Nối
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleSyncDevice}
-                  disabled={isSyncing}
-                  className="flex-1 px-4 py-2.5 text-xs font-bold rounded-xl bg-[#1b365d] hover:bg-[#152a4a] text-white shadow-sm transition-all flex items-center justify-center gap-2"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} />
-                  <span>{isSyncing ? "Đang kéo..." : "Bắt Đầu Đồng Bộ"}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL 2: NHẬP FILE EXCEL VỚI SMART MULTI-FORMAT DATETIME PARSER */}
-      {/* ========================================================================= */}
-      {isExcelModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden">
-            {/* Modal Header */}
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-emerald-800 to-teal-900 text-white">
-              <div className="flex items-center gap-2.5">
-                <FileSpreadsheet className="w-5 h-5 text-emerald-300" />
-                <div>
-                  <h3 className="text-base font-bold">Nhập Dữ Liệu Chấm Công Từ Excel</h3>
-                  <p className="text-xs text-emerald-200/80">Tải lên file Excel xuất từ máy chấm công (.xlsx, .xls)</p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setIsExcelModalOpen(false);
-                  setExcelFile(null);
-                  setExcelPreview([]);
-                  setImportResult(null);
-                }}
-                className="p-1 rounded-lg text-emerald-300 hover:text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 space-y-4">
-
-              {/* Upload Input */}
-              <div className="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-6 text-center transition-colors bg-slate-50/50">
-                <input
-                  type="file"
-                  id="excel-upload-input"
-                  accept=".xlsx, .xls"
-                  onChange={handleExcelFileChange}
-                  className="hidden"
-                />
-                <label
-                  htmlFor="excel-upload-input"
-                  className="cursor-pointer flex flex-col items-center justify-center gap-2"
-                >
-                  <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-xs">
-                    <Upload className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <span className="font-bold text-sm text-slate-800">
-                      {excelFile ? excelFile.name : "Nhấn để chọn file Excel hoặc kéo thả vào đây"}
-                    </span>
-                    <p className="text-xs text-slate-400 mt-0.5">Hỗ trợ định dạng .xlsx, .xls xuất từ phần mềm chấm công</p>
-                  </div>
-                </label>
-              </div>
-
-              {/* Live Preview Table */}
-              {excelPreview.length > 0 && (
-                <div className="space-y-1.5">
-                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                    <Eye className="w-3.5 h-3.5 text-emerald-600" />
-                    Xem trước các dòng đầu trong file:
-                  </span>
-                  <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-xl">
-                    <table className="w-full text-left text-[11px]">
-                      <tbody className="divide-y divide-slate-100 font-mono">
-                        {excelPreview.map((row: any, rIdx: number) => (
-                          <tr key={rIdx} className={rIdx === 0 ? "bg-slate-100 font-bold" : "hover:bg-slate-50"}>
-                            {row.slice(0, 5).map((col: any, cIdx: number) => (
-                              <td key={cIdx} className="py-1.5 px-3 whitespace-nowrap">
-                                {String(col || "")}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Result Summary */}
-              {importResult && (
-                <div className="p-3.5 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs space-y-1">
-                  <p className="font-bold">Kết quả xử lý:</p>
-                  <p>
-                    Tổng số dòng đọc được: <b>{importResult.total}</b> | Thêm mới:{" "}
-                    <b className="text-emerald-700">{importResult.inserted}</b> | Bỏ qua do trùng lặp:{" "}
-                    <b className="text-slate-600">{importResult.skipped}</b>
-                  </p>
-                </div>
-              )}
-
-              {/* Submit Buttons */}
-              <div className="pt-2 flex items-center justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsExcelModalOpen(false);
-                    setExcelFile(null);
-                    setExcelPreview([]);
-                  }}
-                  className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
-                >
-                  Đóng
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleImportExcel}
-                  disabled={!excelFile || isImporting}
-                  className="px-5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white shadow-sm transition-all flex items-center gap-1.5"
-                >
-                  <Upload className={`w-3.5 h-3.5 ${isImporting ? "animate-spin" : ""}`} />
-                  <span>{isImporting ? "Đang nạp dữ liệu..." : "Nạp Dữ Liệu Vào Hệ Thống"}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* EXCEL IMPORT MODAL */}
+      <ExcelImportModal
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+        onSuccess={() => {
+          showToast("Nhập dữ liệu từ Excel thành công!");
+          loadAllData();
+        }}
+        onDownloadTemplate={() => {
+          window.open("http://localhost:5002/api/attendance/export-template", "_blank");
+          showToast("Đang tải file mẫu chấm công...");
+        }}
+      />
     </div>
   );
 }

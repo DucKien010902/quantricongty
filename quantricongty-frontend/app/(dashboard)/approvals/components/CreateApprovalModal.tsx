@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Plus,
   X,
@@ -75,6 +76,7 @@ export const CreateApprovalModal: React.FC<CreateApprovalModalProps> = ({
   const workflowNotice = useMemo(() => {
     const emp = currentEmployee || currentUser;
     if (!emp) return null;
+    const role = (emp.role || "").toUpperCase();
     const dept = (emp.department || "").toLowerCase();
     const pos = (emp.position || "").toLowerCase();
     const level = (emp.positionLevel || "").toLowerCase();
@@ -92,38 +94,43 @@ export const CreateApprovalModal: React.FC<CreateApprovalModalProps> = ({
       level.includes("trưởng") ||
       level.includes("quản trị");
 
-    if (isHRDept && isLeaderTitle) {
+    if (role === "ADMIN") {
       return {
         badge: "Tự động duyệt (APPROVED)",
-        text: "Bạn có chức danh Trưởng phòng/Trưởng ban HCNS. Đơn sẽ được tự động duyệt ngay lập tức và tự hủy được khi cần.",
+        text: "Bạn có quyền Admin nghiệp vụ. Đơn sẽ được tự động phê duyệt ngay lập tức và có thể tự hủy khi cần.",
         color: "bg-emerald-50 text-emerald-800 border-emerald-200",
       };
     }
 
-    if (isLeaderTitle || emp.role === "LEADER") {
+    if (role === "LEADER" || isLeaderTitle) {
       return {
-        badge: "Luồng 1 bước (Chuyển thẳng Trưởng phòng HCNS)",
-        text: "Bạn là Trưởng Ban chuyên môn. Đơn sẽ được chuyển thẳng tới Trưởng phòng HCNS phê duyệt chốt (bỏ qua Cấp 1).",
+        badge: "Luồng 1 bước (Chuyển thẳng Admin duyệt Cấp 2)",
+        text: "Bạn là Trưởng Ban chuyên môn. Đơn sẽ được chuyển thẳng tới Admin nghiệp vụ phê duyệt chốt (bỏ qua Cấp 1).",
         color: "bg-indigo-50 text-indigo-800 border-indigo-200",
       };
     }
 
     if (isHRDept) {
       return {
-        badge: "Luồng 1 bước (Chuyển thẳng Trưởng phòng HCNS)",
-        text: "Bạn thuộc phòng HCNS. Đơn sẽ được chuyển thẳng tới Trưởng phòng HCNS phê duyệt trực tiếp.",
+        badge: "Luồng 1 bước (Chuyển thẳng Admin duyệt Cấp 2)",
+        text: "Bạn thuộc phòng HCNS. Đơn sẽ được chuyển thẳng tới Admin nghiệp vụ phê duyệt trực tiếp.",
         color: "bg-indigo-50 text-indigo-800 border-indigo-200",
       };
     }
 
     return {
       badge: "Luồng chuẩn 2 bước",
-      text: "Đơn của bạn sẽ qua Trưởng phòng/Trưởng ban duyệt Cấp 1 trước, sau đó chuyển Trưởng phòng HCNS duyệt chốt Cấp 2.",
+      text: "Đơn của bạn sẽ qua Trưởng ban duyệt Cấp 1 trước, sau đó chuyển Admin nghiệp vụ duyệt chốt Cấp 2.",
       color: "bg-slate-50 text-slate-700 border-slate-200",
     };
   }, [currentEmployee, currentUser]);
 
-  if (!isOpen) return null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!isOpen || !mounted) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,23 +183,23 @@ export const CreateApprovalModal: React.FC<CreateApprovalModalProps> = ({
     await onSubmit(payload);
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-fade-in"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl overflow-hidden max-h-[92vh] flex flex-col"
+        className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl overflow-hidden max-h-[90vh] flex flex-col my-auto animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 to-[#1b365d] text-white">
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 to-[#1b365d] text-white shrink-0">
           <div className="flex items-center gap-2">
             <Plus className="w-5 h-5 text-blue-300" />
             <div>
               <h3 className="text-base font-bold">Khởi Tạo Đề Xuất Phê Duyệt Mới</h3>
               <p className="text-xs text-blue-200/80">
-                Quy trình phê duyệt 2 cấp (Trưởng ban $\rightarrow$ Trưởng ban HCNS)
+                Quy trình phê duyệt 2 cấp (Trưởng ban → Trưởng ban HCNS)
               </p>
             </div>
           </div>
@@ -447,6 +454,7 @@ export const CreateApprovalModal: React.FC<CreateApprovalModalProps> = ({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

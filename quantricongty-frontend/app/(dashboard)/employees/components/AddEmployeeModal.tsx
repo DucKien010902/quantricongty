@@ -14,6 +14,7 @@ import {
   Send,
   UserPlus,
 } from "lucide-react";
+import Modal from "@/app/components/ui/Modal";
 
 interface AddEmployeeModalProps {
   departments: Array<{ name: string }>;
@@ -240,8 +241,14 @@ export default function AddEmployeeModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl border border-slate-200 flex flex-col max-h-[92vh] overflow-hidden">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="3xl"
+      hideHeader
+      className="p-0 overflow-hidden"
+    >
+      <div className="flex flex-col h-full overflow-hidden">
         {/* Header Modal */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
           <div className="flex items-center gap-3">
@@ -1093,6 +1100,6 @@ export default function AddEmployeeModal({
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

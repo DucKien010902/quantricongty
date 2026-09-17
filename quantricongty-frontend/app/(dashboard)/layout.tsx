@@ -9,6 +9,7 @@ import LoginScreen from "@/app/components/auth/LoginScreen";
 import JoinOrganizationScreen from "@/app/components/auth/JoinOrganizationScreen";
 import CompanySetupWizard from "@/app/components/auth/CompanySetupWizard";
 import { Check } from "lucide-react";
+import PageTransitionWrapper from "@/app/components/layout/PageTransitionWrapper";
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const {
@@ -29,7 +30,20 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     loadData,
   } = useApp();
 
-  if (!isAuthLoaded) return null;
+  if (!isAuthLoaded) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center py-16 select-none animate-fade-in">
+        <div className="flex items-center justify-center gap-1.5 h-8">
+          <span className="w-1.5 bg-[#1b365d] rounded-full animate-bar-pulse-1 shadow-2xs" />
+          <span className="w-1.5 bg-[#1b365d] rounded-full animate-bar-pulse-2 shadow-2xs" />
+          <span className="w-1.5 bg-[#1b365d] rounded-full animate-bar-pulse-3 shadow-2xs" />
+        </div>
+        <span className="text-[11px] font-semibold text-slate-400 mt-3 tracking-wide">
+          Đang khởi tạo hệ thống quản trị...
+        </span>
+      </div>
+    );
+  }
 
   // LUỒNG 1: MÀN HÌNH NHẬN THƯ MỜI THAM GIA TỔ CHỨC
   if (isJoinActive) {
@@ -79,8 +93,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
 
-        <main className="flex-1 p-7 max-w-7xl w-full mx-auto">
-          {children}
+        <main className="flex-1 p-7 max-w-7xl w-full mx-auto flex flex-col min-h-0">
+          <PageTransitionWrapper>{children}</PageTransitionWrapper>
         </main>
       </div>
 

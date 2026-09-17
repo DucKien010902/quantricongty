@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { RotateCcw, X } from "lucide-react";
 import { ApprovalItem } from "../types";
 
@@ -9,6 +10,7 @@ interface CancelApprovalModalProps {
   onClose: () => void;
   actionLoading: boolean;
   isHeadOfHR?: boolean;
+  isAdmin?: boolean;
   onConfirmCancel: (item: ApprovalItem, reason: string) => Promise<void>;
 }
 
@@ -17,11 +19,18 @@ export const CancelApprovalModal: React.FC<CancelApprovalModalProps> = ({
   onClose,
   actionLoading,
   isHeadOfHR = false,
+  isAdmin = false,
   onConfirmCancel,
 }) => {
   const [reason, setReason] = useState("");
+  const isBusinessAdmin = Boolean(isAdmin || isHeadOfHR);
 
-  if (!item) return null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!item || !mounted) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,24 +39,24 @@ export const CancelApprovalModal: React.FC<CancelApprovalModalProps> = ({
     setReason("");
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-fade-in"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden flex flex-col"
+        className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden flex flex-col my-auto animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-amber-700 text-white">
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-amber-700 text-white shrink-0">
           <div className="flex items-center gap-2">
             <RotateCcw className="w-5 h-5 text-amber-200" />
             <div>
               <h3 className="text-base font-bold">
-                {isHeadOfHR ? "Trưởng phòng HCNS Tự Hủy Đơn" : "Đề Xuất Hủy Nghỉ Phép"}
+                {isBusinessAdmin ? "Admin Nghiệp Vụ Tự Hủy Đơn" : "Đề Xuất Hủy Nghỉ Phép"}
               </h3>
               <p className="text-xs text-amber-100">
-                {isHeadOfHR ? "Hủy đơn và hoàn ngày phép tức thì" : "Gửi Trưởng ban HCNS để hoàn lại ngày phép"}
+                {isBusinessAdmin ? "Hủy đơn và hoàn ngày phép tức thì" : "Gửi Admin nghiệp vụ để hoàn lại ngày phép"}
               </p>
             </div>
           </div>
@@ -77,13 +86,13 @@ export const CancelApprovalModal: React.FC<CancelApprovalModalProps> = ({
           </div>
 
           <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-[11px] leading-relaxed">
-            {isHeadOfHR ? (
+            {isBusinessAdmin ? (
               <span>
-                Với cương vị <strong>Trưởng phòng HCNS</strong>, thao tác này sẽ <strong>hủy đơn trực tiếp ngay lập tức</strong>, đồng thời tự động hoàn lại <strong>{item.daysCount} ngày phép</strong> và khôi phục bảng chấm công.
+                Với cương vị <strong>Admin nghiệp vụ</strong>, thao tác này sẽ <strong>hủy đơn trực tiếp ngay lập tức</strong>, đồng thời tự động hoàn lại <strong>{item.daysCount} ngày phép</strong> và khôi phục bảng chấm công.
               </span>
             ) : (
               <span>
-                Khi Trưởng phòng HCNS chấp thuận hủy đơn, <strong>{item.daysCount} ngày phép</strong> sẽ được tự động hoàn lại vào Quỹ phép năm của bạn và cập nhật lại bảng chấm công.
+                Khi Admin nghiệp vụ chấp thuận hủy đơn, <strong>{item.daysCount} ngày phép</strong> sẽ được tự động hoàn lại vào Quỹ phép năm của bạn và cập nhật lại bảng chấm công.
               </span>
             )}
           </div>
@@ -101,11 +110,12 @@ export const CancelApprovalModal: React.FC<CancelApprovalModalProps> = ({
               disabled={actionLoading || !reason.trim()}
               className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-xs transition-colors"
             >
-              {isHeadOfHR ? "Xác nhận tự hủy & hoàn phép" : "Gửi đề xuất hủy"}
+              {isBusinessAdmin ? "Xác nhận tự hủy & hoàn phép" : "Gửi đề xuất hủy"}
             </button>
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

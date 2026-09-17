@@ -43,7 +43,12 @@ export const ApprovalTable: React.FC<ApprovalTableProps> = ({
   onHRApprove,
   onHRApproveCancel,
 }) => {
-  const canApproveHR = isHeadOfHR || isHRAdmin;
+  // Thẩm quyền Duyệt Cấp 2 & Duyệt Hủy: Quản trị viên (Admin nghiệp vụ)
+  const canApproveHR = Boolean(
+    currentUser?.role === "ADMIN" ||
+    currentEmployee?.role === "ADMIN" ||
+    isHeadOfHR
+  );
   const userDept = currentEmployee?.department || currentUser?.department || "";
 
   // Thẩm quyền Duyệt Cấp 1: Bắt buộc Trưởng ban / Trưởng phòng của CHÍNH BAN ĐÓ duyệt
@@ -99,7 +104,7 @@ export const ApprovalTable: React.FC<ApprovalTableProps> = ({
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-800 border border-indigo-200">
             <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-            Cấp 2: Chờ HCNS
+            Cấp 2: Chờ Admin
           </span>
         );
       case "APPROVED":
@@ -280,7 +285,7 @@ export const ApprovalTable: React.FC<ApprovalTableProps> = ({
                           </>
                         )}
 
-                        {/* Duyệt Cấp 2 (Trưởng phòng HCNS) */}
+                        {/* Duyệt Cấp 2 (Admin nghiệp vụ) */}
                         {item.status === "PENDING_HR" && canApproveHR && (
                           <>
                             <button
@@ -288,7 +293,7 @@ export const ApprovalTable: React.FC<ApprovalTableProps> = ({
                               disabled={actionLoading}
                               onClick={() => onHRApprove(itemId, true)}
                               className="px-3 py-1.5 rounded-lg bg-[#1b365d] hover:bg-[#152a4a] text-white font-semibold text-xs shadow-2xs transition-all hover:scale-105 active:scale-95 flex items-center gap-1"
-                              title="Trưởng phòng HCNS phê duyệt chốt & trừ phép thật"
+                              title="Quản trị viên (Admin nghiệp vụ) phê duyệt chốt & trừ phép thật"
                             >
                               <Check className="w-3.5 h-3.5 stroke-[2.5]" />
                               <span>Duyệt Chốt</span>
@@ -305,14 +310,14 @@ export const ApprovalTable: React.FC<ApprovalTableProps> = ({
                           </>
                         )}
 
-                        {/* Trưởng phòng HCNS Duyệt Hủy Đơn */}
+                        {/* Admin nghiệp vụ Duyệt Hủy Đơn */}
                         {item.status === "REQUEST_CANCEL" && canApproveHR && (
                           <button
                             type="button"
                             disabled={actionLoading}
                             onClick={() => onHRApproveCancel(itemId, true)}
                             className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-2xs transition-all hover:scale-105 active:scale-95 flex items-center gap-1"
-                            title="Chấp thuận hủy đơn và hoàn phép"
+                            title="Admin nghiệp vụ chấp thuận hủy đơn và hoàn phép"
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
                             <span>Hoàn phép</span>
@@ -332,16 +337,16 @@ export const ApprovalTable: React.FC<ApprovalTableProps> = ({
                             ) : item.status === "PENDING_HR" ? (
                               <span
                                 className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 rounded-md cursor-help"
-                                title="Đơn đang chờ Trưởng phòng Hành chính - Nhân sự phê duyệt chốt Cấp 2"
+                                title="Đơn đang chờ Quản trị viên (Admin nghiệp vụ) phê duyệt chốt Cấp 2"
                               >
-                                ⏳ Chờ Trưởng HCNS
+                                ⏳ Chờ Admin C2
                               </span>
                             ) : item.status === "REQUEST_CANCEL" ? (
                               <span
                                 className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md cursor-help"
-                                title="Đang chờ Trưởng phòng HCNS xác nhận hủy và hoàn phép"
+                                title="Đang chờ Quản trị viên (Admin nghiệp vụ) xác nhận hủy và hoàn phép"
                               >
-                                ⏳ Chờ Trưởng HCNS hủy
+                                ⏳ Chờ Admin hủy
                               </span>
                             ) : (
                               <span className="text-slate-400 text-xs">--</span>

@@ -61,17 +61,57 @@ h4 {
 }
 
 /* 4. Google Identity Services (GIS) button full-width */
-/* GIS SDK inject iframe vào container - ép full width để đồng bộ với ô email */
 div[data-google-signin-button] > div,
 div[data-google-signin-button] iframe {
   width: 100% !important;
 }
 
-/* Container ref của Google button */
 .google-btn-container > div {
   width: 100% !important;
 }
 .google-btn-container iframe {
   width: 100% !important;
   border-radius: 12px !important;
+}
+
+/* 5. HIỆU ỨNG CHUYỂN TRANG MƯỢT VÀ SPINNER THƯƠNG HIỆU (BRAND NAVY #1b365d) */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes barPulse {
+  0%, 100% {
+    height: 10px;
+    opacity: 0.35;
+  }
+  50% {
+    height: 26px;
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-bar-pulse-1 {
+  animation: barPulse 0.75s ease-in-out infinite;
+  animation-delay: 0s;
+}
+
+.animate-bar-pulse-2 {
+  animation: barPulse 0.75s ease-in-out infinite;
+  animation-delay: 0.15s;
+}
+
+.animate-bar-pulse-3 {
+  animation: barPulse 0.75s ease-in-out infinite;
+  animation-delay: 0.3s;
 }

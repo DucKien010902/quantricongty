@@ -33,7 +33,7 @@ export const ApprovalStatsCards: React.FC<ApprovalStatsCardsProps> = ({ stats })
             <span className="text-sm font-medium text-slate-500">hồ sơ</span>
           </div>
           <p className="text-xs text-slate-500 mt-1 font-medium">
-            Cấp 1 (Ban): <b className="text-slate-700">{stats.pendingLeader}</b> • Cấp 2 (HCNS): <b className="text-slate-700">{stats.pendingHR}</b>
+            Cấp 1 (Ban): <b className="text-slate-700">{stats.pendingLeader}</b> • Cấp 2 (Admin): <b className="text-slate-700">{stats.pendingHR}</b>
           </p>
         </div>
       </div>
@@ -72,7 +72,7 @@ export const ApprovalStatsCards: React.FC<ApprovalStatsCardsProps> = ({ stats })
             </span>
             <span className="text-sm font-medium text-slate-500">đơn</span>
           </div>
-          <p className="text-xs text-slate-500 mt-1 font-medium">Chờ HCNS xét duyệt hoàn phép</p>
+          <p className="text-xs text-slate-500 mt-1 font-medium">Chờ Admin nghiệp vụ xét duyệt hoàn phép</p>
         </div>
       </div>
 

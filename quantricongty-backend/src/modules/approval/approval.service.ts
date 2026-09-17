@@ -43,11 +43,6 @@ export class ApprovalService {
   }
 
   async findAll(type?: string, status?: string, department?: string): Promise<Approval[]> {
-    const count = await this.approvalModel.countDocuments().exec();
-    if (count === 0) {
-      await this.seedInitialApprovals();
-    }
-
     const filter: any = {};
     if (type && type !== 'all') {
       filter.type = type;
@@ -68,9 +63,17 @@ export class ApprovalService {
     return item;
   }
 
-  // 1. Kiểm tra có phải là Trưởng phòng / Trưởng ban HCNS (Dựa vào CHỨC DANH)
+  // 1. Kiểm tra quyền Admin nghiệp vụ (thẩm quyền duyệt chốt Cấp 2 toàn công ty)
+  isAdmin(emp: any): boolean {
+    if (!emp) return false;
+    const role = (emp.role || '').toUpperCase();
+    return role === 'ADMIN';
+  }
+
+  // 1b. Hỗ trợ đối chiếu Admin nghiệp vụ hoặc Trưởng phòng HCNS
   isHeadOfHR(emp: any): boolean {
     if (!emp) return false;
+    if (this.isAdmin(emp)) return true;
     const dept = (emp.department || '').toLowerCase();
     const pos = (emp.position || '').toLowerCase();
     const level = (emp.positionLevel || '').toLowerCase();
@@ -159,37 +162,37 @@ export class ApprovalService {
 
     let skipReason = '';
 
-    if (this.isHeadOfHR(emp)) {
-      // Quy tắc 1: Trưởng phòng HCNS xin nghỉ -> Được duyệt luôn trực tiếp
+    if (this.isAdmin(emp)) {
+      // Quy tắc 1: Admin nghiệp vụ xin nghỉ -> Tự động phê duyệt trực tiếp
       initialStatus = ApprovalStatus.APPROVED;
-      skipReason = 'Người làm đơn là Trưởng phòng/Trưởng ban HCNS → Tự động phê duyệt trực tiếp';
-    } else if (this.isDepartmentLeader(emp)) {
-      // Quy tắc 2: Trưởng ban các phòng ban khác -> Chỉ cần Trưởng phòng HCNS duyệt
+      skipReason = 'Người làm đơn là Admin nghiệp vụ → Tự động phê duyệt trực tiếp';
+    } else if (this.isDepartmentLeader(emp) || (emp?.role || '').toUpperCase() === 'LEADER') {
+      // Quy tắc 2: Trưởng ban chuyên môn -> Chỉ cần Admin nghiệp vụ duyệt Cấp 2
       initialStatus = ApprovalStatus.PENDING_HR;
-      skipReason = 'Người làm đơn là Trưởng Ban chuyên môn → Bỏ qua Cấp 1, chuyển thẳng tới Trưởng phòng HCNS duyệt';
+      skipReason = 'Người làm đơn là Trưởng Ban chuyên môn → Bỏ qua Cấp 1, chuyển thẳng tới Admin nghiệp vụ duyệt Cấp 2';
     } else if (this.isHREmployee(emp)) {
-      // Quy tắc 3: Nhân sự thuộc phòng HCNS -> Chuyển thẳng tới Trưởng phòng HCNS duyệt luôn
+      // Quy tắc 3: Nhân sự thuộc phòng HCNS -> Chuyển thẳng tới Admin nghiệp vụ duyệt Cấp 2
       initialStatus = ApprovalStatus.PENDING_HR;
-      skipReason = 'Nhân sự thuộc phòng HCNS → Chuyển thẳng tới Trưởng phòng HCNS duyệt';
+      skipReason = 'Nhân sự thuộc phòng HCNS → Chuyển thẳng tới Admin nghiệp vụ duyệt Cấp 2';
     } else {
       // Kiểm tra xem phòng ban của nhân sự này đã có Trưởng phòng / Trưởng ban chưa
       const leaderInDept = await this.employeeModel.findOne({
         department: requesterDept,
         code: { $ne: emp?.code },
         $or: [
+          { role: 'LEADER' },
           { positionLevel: 'Trưởng Ban' },
           { positionLevel: 'Ban Quản Trị' },
-          { role: 'LEADER' },
           { position: { $regex: /trưởng|giám đốc|phụ trách/i } },
         ],
       }).exec();
 
       if (!leaderInDept) {
-        // Quy tắc 4: Phòng ban không có Trưởng phòng -> Thẳng 1 bước tới Trưởng phòng HCNS
+        // Quy tắc 4: Phòng ban không có Trưởng phòng -> Thẳng 1 bước tới Admin nghiệp vụ duyệt Cấp 2
         initialStatus = ApprovalStatus.PENDING_HR;
-        skipReason = `Ban [${requesterDept}] hiện chưa có Trưởng Ban → Chuyển thẳng tới Trưởng phòng HCNS duyệt`;
+        skipReason = `Ban [${requesterDept}] hiện chưa có Trưởng Ban → Chuyển thẳng tới Admin nghiệp vụ duyệt Cấp 2`;
       } else {
-        // Quy tắc 5: Nhân sự bình thường có Trưởng phòng -> Phê duyệt qua Trưởng phòng đó (Cấp 1) rồi tới Trưởng phòng HCNS
+        // Quy tắc 5: Nhân sự bình thường có Trưởng phòng -> Phê duyệt qua Trưởng phòng đó (Cấp 1) rồi tới Admin nghiệp vụ duyệt Cấp 2
         initialStatus = ApprovalStatus.PENDING_LEADER;
       }
     }
@@ -214,16 +217,16 @@ export class ApprovalService {
     if (isAutoApproved) {
       historyList.push({
         step: 'Tự động phê duyệt',
-        actor: emp?.name || data.requesterName || 'Trưởng phòng HCNS',
-        action: 'Tự động phê duyệt (Dành riêng cho Trưởng phòng HCNS)',
+        actor: emp?.name || data.requesterName || 'Admin nghiệp vụ',
+        action: 'Tự động phê duyệt (Dành riêng cho Admin nghiệp vụ)',
         time: timeNow,
-        note: 'Đơn của Trưởng phòng HCNS được phê duyệt chấp thuận trực tiếp & đồng bộ chấm công',
+        note: 'Đơn của Admin nghiệp vụ được phê duyệt chấp thuận trực tiếp & đồng bộ chấm công',
       });
     } else if (isC1Skipped) {
       historyList.push({
-        step: 'Chuyển thẳng HCNS (Bỏ qua C1)',
+        step: 'Chuyển thẳng Admin (Bỏ qua C1)',
         actor: 'Hệ thống luồng duyệt',
-        action: 'Chuyển thẳng tới Trưởng phòng HCNS phê duyệt',
+        action: 'Chuyển thẳng tới Admin nghiệp vụ phê duyệt Cấp 2',
         time: timeNow,
         note: skipReason,
       });
@@ -354,7 +357,7 @@ export class ApprovalService {
       item.history.push({
         step: 'Trưởng Ban Duyệt (Cấp 1)',
         actor: approverName,
-        action: 'Đã phê duyệt cấp Ban - Chuyển tiếp lên Trưởng ban HCNS',
+        action: 'Đã phê duyệt cấp Ban - Chuyển tiếp lên Admin nghiệp vụ duyệt Cấp 2',
         time: timeNow,
         note: note || 'Đạt yêu cầu bàn giao công việc',
       });
@@ -379,28 +382,27 @@ export class ApprovalService {
     return item.save();
   }
 
-  // Cấp 2: Trưởng ban HCNS duyệt chốt (Dựa vào CHỨC DANH Trưởng phòng HCNS)
+  // Cấp 2: Admin nghiệp vụ duyệt chốt toàn công ty
   async hrApprove(id: string, approverCode: string, approverName: string, isApproved: boolean, note?: string): Promise<Approval> {
     const item = await this.approvalModel.findById(id).exec();
     if (!item) throw new NotFoundException('Không tìm thấy đơn!');
 
     if (item.status !== ApprovalStatus.PENDING_HR) {
-      throw new BadRequestException('Đơn không ở trạng thái Chờ HCNS phê duyệt!');
+      throw new BadRequestException('Đơn không ở trạng thái Chờ phê duyệt Cấp 2!');
     }
 
-    // KIỂM TRA THẨM QUYỀN DỰA VÀO CHỨC DANH TRƯỞNG PHÒNG HCNS (KHÔNG PHẢI CHỈ DỰA VÀO ROLE)
+    // KIỂM TRA THẨM QUYỀN DUYỆT CẤP 2 (ADMIN NGHIỆP VỤ)
     const approver = await this.employeeModel.findOne({
       $or: [{ code: approverCode }, { email: approverCode }],
     }).exec();
 
-    const isApproverHeadOfHR =
-      this.isHeadOfHR(approver) ||
-      approver?.role === 'ADMIN' ||
-      approver?.positionLevel === 'Ban Quản Trị';
+    const isApproverAdmin =
+      (approver?.role || '').toUpperCase() === 'ADMIN' ||
+      this.isAdmin(approver);
 
-    if (!isApproverHeadOfHR) {
+    if (!isApproverAdmin) {
       throw new BadRequestException(
-        'Chỉ có Trưởng phòng / Trưởng ban Hành chính - Nhân sự (hoặc Ban Quản Trị) mới có thẩm quyền phê duyệt Cấp 2!'
+        'Chỉ có Quản trị viên (Admin nghiệp vụ) mới có thẩm quyền phê duyệt Cấp 2!'
       );
     }
 
@@ -416,7 +418,7 @@ export class ApprovalService {
         time: timeNow,
       };
       item.history.push({
-        step: 'Trưởng Ban HCNS Phê Duyệt (Cấp 2)',
+        step: 'Admin Nghiệp Vụ Phê Duyệt (Cấp 2)',
         actor: approverName,
         action: 'Phê duyệt chính thức & Ghi nhận công',
         time: timeNow,
@@ -484,7 +486,7 @@ export class ApprovalService {
         time: timeNow,
       };
       item.history.push({
-        step: 'Trưởng Ban HCNS Từ Chối (Cấp 2)',
+        step: 'Admin Nghiệp Vụ Từ Chối (Cấp 2)',
         actor: approverName,
         action: 'Không chấp thuận đơn nghỉ phép',
         time: timeNow,
@@ -522,16 +524,16 @@ export class ApprovalService {
         $or: [{ code: item.requesterCode }, { email: item.requesterCode }],
       }).exec();
 
-      const isRequesterHeadOfHR = this.isHeadOfHR(requester);
+      const isRequesterAdmin = this.isAdmin(requester) || (requester?.role || '').toUpperCase() === 'ADMIN';
 
-      // ĐẶC BIỆT: "trưởng hcns thì xin nghỉ được luôn và tư hủy được"
-      if (isRequesterHeadOfHR) {
+      // ĐẶC BIỆT: "Admin nghiệp vụ xin nghỉ được luôn và tự hủy được"
+      if (isRequesterAdmin) {
         item.status = ApprovalStatus.CANCELLED;
-        item.cancelReason = reason || 'Trưởng phòng HCNS chủ động tự hủy đơn đã duyệt';
+        item.cancelReason = reason || 'Admin nghiệp vụ chủ động tự hủy đơn đã duyệt';
         item.history.push({
-          step: 'Trưởng phòng HCNS tự hủy đơn',
+          step: 'Admin nghiệp vụ tự hủy đơn',
           actor: userName,
-          action: 'Trưởng phòng HCNS tự hủy đơn & Hoàn lại ngày phép vào quỹ',
+          action: 'Admin nghiệp vụ tự hủy đơn & Hoàn lại ngày phép vào quỹ',
           time: timeNow,
           note: reason || 'Kế hoạch cá nhân thay đổi',
         });
@@ -564,13 +566,13 @@ export class ApprovalService {
         return item.save();
       }
 
-      // Các nhân sự khác: Đơn đã duyệt chuyển sang REQUEST_CANCEL để Trưởng phòng HCNS duyệt hoàn phép
+      // Các nhân sự khác: Đơn đã duyệt chuyển sang REQUEST_CANCEL để Admin nghiệp vụ duyệt hoàn phép
       item.status = ApprovalStatus.REQUEST_CANCEL;
       item.cancelReason = reason || 'Nhân sự đề nghị hủy lịch nghỉ phép đã được duyệt';
       item.history.push({
         step: 'Đề xuất hủy đơn đã duyệt',
         actor: userName,
-        action: 'Gửi đề xuất hủy đơn tới Trưởng phòng HCNS để hoàn lại ngày phép',
+        action: 'Gửi đề xuất hủy đơn tới Admin nghiệp vụ để hoàn lại ngày phép',
         time: timeNow,
         note: reason || 'Đi làm bình thường theo yêu cầu đột xuất',
       });
@@ -580,7 +582,7 @@ export class ApprovalService {
     throw new BadRequestException(`Không thể hủy đơn đang ở trạng thái: ${item.status}`);
   }
 
-  // HCNS xác nhận chấp thuận hủy đơn và hoàn trả ngày phép (Dựa vào CHỨC DANH Trưởng phòng HCNS)
+  // Admin nghiệp vụ xác nhận chấp thuận hủy đơn và hoàn trả ngày phép
   async hrApproveCancel(id: string, hrCode: string, hrName: string, isApproved: boolean, note?: string): Promise<Approval> {
     const item = await this.approvalModel.findById(id).exec();
     if (!item) throw new NotFoundException('Không tìm thấy đơn!');
@@ -589,19 +591,18 @@ export class ApprovalService {
       throw new BadRequestException('Đơn không ở trạng thái Yêu Cầu Hủy!');
     }
 
-    // KIỂM TRA THẨM QUYỀN DỰA VÀO CHỨC DANH TRƯỞNG PHÒNG HCNS
+    // KIỂM TRA THẨM QUYỀN DUYỆT HỦY (ADMIN NGHIỆP VỤ)
     const approver = await this.employeeModel.findOne({
       $or: [{ code: hrCode }, { email: hrCode }],
     }).exec();
 
-    const isApproverHeadOfHR =
-      this.isHeadOfHR(approver) ||
-      approver?.role === 'ADMIN' ||
-      approver?.positionLevel === 'Ban Quản Trị';
+    const isApproverAdmin =
+      (approver?.role || '').toUpperCase() === 'ADMIN' ||
+      this.isAdmin(approver);
 
-    if (!isApproverHeadOfHR) {
+    if (!isApproverAdmin) {
       throw new BadRequestException(
-        'Chỉ có Trưởng phòng / Trưởng ban Hành chính - Nhân sự (hoặc Ban Quản Trị) mới có thẩm quyền xác nhận hủy đơn hoàn phép!'
+        'Chỉ có Quản trị viên (Admin nghiệp vụ) mới có thẩm quyền xác nhận hủy đơn hoàn phép!'
       );
     }
 
@@ -610,7 +611,7 @@ export class ApprovalService {
     if (isApproved) {
       item.status = ApprovalStatus.CANCELLED;
       item.history.push({
-        step: 'HCNS Duyệt Hủy Đơn',
+        step: 'Admin Nghiệp Vụ Duyệt Hủy Đơn',
         actor: hrName,
         action: 'Đã chấp thuận hủy đơn & Hoàn lại ngày phép vào quỹ',
         time: timeNow,
@@ -646,7 +647,7 @@ export class ApprovalService {
       // Từ chối hủy -> Vẫn giữ nguyên là APPROVED
       item.status = ApprovalStatus.APPROVED;
       item.history.push({
-        step: 'HCNS Từ Chối Hủy',
+        step: 'Admin Nghiệp Vụ Từ Chối Hủy',
         actor: hrName,
         action: 'Không chấp thuận đề xuất hủy đơn',
         time: timeNow,

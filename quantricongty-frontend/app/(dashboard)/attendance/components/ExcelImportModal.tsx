@@ -10,6 +10,7 @@ import {
   Download,
   Loader2,
 } from "lucide-react";
+import Modal from "@/app/components/ui/Modal";
 
 interface ExcelImportModalProps {
   isOpen: boolean;
@@ -85,14 +86,14 @@ export default function ExcelImportModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in"
-      onClick={onClose}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="lg"
+      hideHeader
+      className="p-0 overflow-hidden"
     >
-      <div
-        className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="flex flex-col h-full overflow-hidden">
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-950/40">
           <div className="flex items-center gap-2.5">
@@ -218,6 +219,6 @@ export default function ExcelImportModal({
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -22,7 +22,10 @@ import {
   Award,
   Download,
   ExternalLink,
+  KeyRound,
 } from "lucide-react";
+import Link from "next/link";
+import { usePermission } from "@/app/hooks/usePermission";
 import EditProfileWizardModal from "./EditProfileWizardModal";
 import { DepartmentInfo } from "@/app/data/seed-employees";
 
@@ -51,6 +54,7 @@ export default function ProfileView({
   departments,
   onUpdateUser,
 }: ProfileViewProps) {
+  const { isSystemAdmin } = usePermission();
   const [activeTab, setActiveTab] = useState<string>("personal");
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -92,7 +96,9 @@ export default function ProfileView({
         <div className="px-6 sm:px-8 pb-6 relative">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-16 sm:-mt-20">
             {/* Avatar with Camera Icon */}
-            <div className="relative group w-28 h-28 sm:w-32 sm:h-32 rounded-3xl overflow-hidden ring-4 ring-white shadow-xl bg-slate-100 flex-shrink-0">
+            <div
+              className={`relative group w-28 h-28 sm:w-32 sm:h-32 rounded-3xl overflow-hidden shadow-xl bg-slate-100 flex-shrink-0 transition-all ring-4 ring-white`}
+            >
               <Image
                 src={currentUser?.avatar || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80"}
                 alt={displayName}
@@ -113,6 +119,17 @@ export default function ProfileView({
 
             {/* Quick Actions Right */}
             <div className="flex items-center gap-2.5">
+              {isSystemAdmin && (
+                <Link
+                  href="/settings"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-700 hover:via-fuchsia-700 hover:to-pink-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-fuchsia-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  title="Đi tới Cài đặt & Quản trị hệ thống"
+                >
+                  <KeyRound className="w-4 h-4 text-purple-100" />
+                  <span>Admin hệ thống</span>
+                </Link>
+              )}
+
               <button
                 type="button"
                 onClick={() => setIsEditModalOpen(true)}
@@ -175,11 +192,10 @@ export default function ProfileView({
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`py-3.5 px-4 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap border-b-2 -mb-px ${
-                  isActive
+                className={`py-3.5 px-4 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap border-b-2 -mb-px ${isActive
                     ? "border-[#1b365d] text-[#1b365d] font-bold"
                     : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-                }`}
+                  }`}
               >
                 {tab.label}
               </button>
@@ -818,9 +834,8 @@ export default function ProfileView({
               <span className="text-sm text-slate-500 sm:w-1/3">Người liên hệ khẩn cấp</span>
               <span className="text-sm font-semibold text-slate-800 sm:w-2/3">
                 {currentUser?.emergencyContactName
-                  ? `${currentUser.emergencyContactName}${
-                      currentUser.emergencyRelationship ? ` (${currentUser.emergencyRelationship})` : ""
-                    }${currentUser.emergencyContactPhone ? ` - ${currentUser.emergencyContactPhone}` : ""}`
+                  ? `${currentUser.emergencyContactName}${currentUser.emergencyRelationship ? ` (${currentUser.emergencyRelationship})` : ""
+                  }${currentUser.emergencyContactPhone ? ` - ${currentUser.emergencyContactPhone}` : ""}`
                   : "—"}
               </span>
             </div>
@@ -923,10 +938,10 @@ export default function ProfileView({
                 {currentUser?.role === "ADMIN"
                   ? "Quản trị viên (ADMIN)"
                   : currentUser?.role === "HCNS"
-                  ? "Quản lý Hành chính - Nhân sự (HCNS)"
-                  : currentUser?.role === "LEADER"
-                  ? "Trưởng ban / Quản lý (LEADER)"
-                  : "Cán bộ nhân viên (USER)"}
+                    ? "Quản lý Hành chính - Nhân sự (HCNS)"
+                    : currentUser?.role === "LEADER"
+                      ? "Trưởng ban / Quản lý (LEADER)"
+                      : "Cán bộ nhân viên (USER)"}
               </h4>
             </div>
           </div>
@@ -936,15 +951,15 @@ export default function ProfileView({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {(currentUser?.role === "ADMIN"
                 ? [
-                    "Toàn quyền quản trị nhân sự và tài khoản nội bộ",
-                    "Phê duyệt và ký điện tử các tài liệu quan trọng",
-                    "Quản lý cơ cấu Ban / Phòng và phân công chức danh",
-                    "Xem và xuất báo cáo tài chính, chấm công toàn công ty",
-                    "Cấu hình hệ thống và ma trận phân quyền",
-                    "Khởi tạo tổ chức và thiết lập quy chế công ty",
-                  ]
+                  "Toàn quyền quản trị nhân sự và tài khoản nội bộ",
+                  "Phê duyệt và ký điện tử các tài liệu quan trọng",
+                  "Quản lý cơ cấu Ban / Phòng và phân công chức danh",
+                  "Xem và xuất báo cáo tài chính, chấm công toàn công ty",
+                  "Cấu hình hệ thống và ma trận phân quyền",
+                  "Khởi tạo tổ chức và thiết lập quy chế công ty",
+                ]
                 : currentUser?.role === "HCNS"
-                ? [
+                  ? [
                     "Quản lý hồ sơ cán bộ nhân viên toàn công ty",
                     "Theo dõi bảng chấm công, chốt công và đồng bộ máy chấm công",
                     "Quản trị ngày phép năm và hạn mức nghỉ phép",
@@ -952,23 +967,23 @@ export default function ProfileView({
                     "Đăng tải tài liệu, biểu mẫu hành chính chung",
                     "Tự chấm công và tra cứu lịch cá nhân",
                   ]
-                : currentUser?.role === "LEADER"
-                ? [
-                    "Xem danh sách nhân sự thuộc Ban phụ trách",
-                    "Phê duyệt Cấp 1 đơn xin nghỉ phép, công tác của cán bộ trong Ban",
-                    "Theo dõi và rà soát bảng chấm công nội bộ Ban",
-                    "Tạo lịch họp, lịch công tác cho phòng ban",
-                    "Tự chấm công và nộp đề xuất cá nhân",
-                    "Tra cứu danh bạ đồng nghiệp nội bộ",
-                  ]
-                : [
-                    "Tự tra cứu bảng chấm công và giờ vào/ra cá nhân",
-                    "Tạo đơn xin nghỉ phép, đề xuất công tác cá nhân",
-                    "Xem danh bạ nội bộ công ty",
-                    "Theo dõi lịch công tác và sự kiện chung",
-                    "Xem và cập nhật thông tin cá nhân cơ bản",
-                    "Nhận thông báo và văn bản điều hành",
-                  ]
+                  : currentUser?.role === "LEADER"
+                    ? [
+                      "Xem danh sách nhân sự thuộc Ban phụ trách",
+                      "Phê duyệt Cấp 1 đơn xin nghỉ phép, công tác của cán bộ trong Ban",
+                      "Theo dõi và rà soát bảng chấm công nội bộ Ban",
+                      "Tạo lịch họp, lịch công tác cho phòng ban",
+                      "Tự chấm công và nộp đề xuất cá nhân",
+                      "Tra cứu danh bạ đồng nghiệp nội bộ",
+                    ]
+                    : [
+                      "Tự tra cứu bảng chấm công và giờ vào/ra cá nhân",
+                      "Tạo đơn xin nghỉ phép, đề xuất công tác cá nhân",
+                      "Xem danh bạ nội bộ công ty",
+                      "Theo dõi lịch công tác và sự kiện chung",
+                      "Xem và cập nhật thông tin cá nhân cơ bản",
+                      "Nhận thông báo và văn bản điều hành",
+                    ]
               ).map((perm, idx) => (
                 <div
                   key={idx}

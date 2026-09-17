@@ -33,7 +33,7 @@ export function getUserPosition(user: any): string {
 export function getUserSystemRole(user: any): string {
   const role = (user?.role || user?.systemRole || "").toUpperCase();
   if (role === "ADMIN" || role === "CHAIRMAN" || role === "CEO" || role === "SYSTEM_ADMIN") {
-    return "Quản trị viên hệ thống";
+    return "Quản trị viên";
   }
   if (role === "LEADER" || role === "HEAD_OF_DEPARTMENT") {
     return "Lãnh đạo & Trưởng ban";

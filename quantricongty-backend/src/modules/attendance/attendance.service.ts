@@ -1013,7 +1013,7 @@ export class AttendanceService {
    * Query Tab 2: Monthly Summary Table
    * Implements section 6 of CHAMCONG_WEB_SPECIFICATION.md
    */
-  async getMonthlySummary(month?: string): Promise<any> {
+  async getMonthlySummary(month?: string, userId?: string, department?: string): Promise<any> {
     await this.autoSyncMappedEmployees();
 
     const targetMonth = month || '2026-09';
@@ -1045,8 +1045,16 @@ export class AttendanceService {
     }
 
     // 2. Fetch all daily records for this month
+    const dailyFilter: any = { date: { $regex: `^${targetMonth}` } };
+    if (userId && userId !== 'ALL') {
+      dailyFilter.userId = userId;
+    }
+    if (department && department !== 'ALL') {
+      dailyFilter.department = department;
+    }
+
     const dailyRecords = await this.dailyModel
-      .find({ date: { $regex: `^${targetMonth}` } })
+      .find(dailyFilter)
       .lean();
 
     // Group by userId
@@ -1066,9 +1074,17 @@ export class AttendanceService {
 
     // ONLY employees who have attendanceCode are counted in monthly summary!
     const employees = await this.employeeModel.find().lean();
-    const targetEmployees = (employees as any[]).filter(
+    let targetEmployees = (employees as any[]).filter(
       (e: any) => e.attendanceCode && String(e.attendanceCode).trim() !== ''
     );
+    if (userId && userId !== 'ALL') {
+      targetEmployees = targetEmployees.filter(
+        (e: any) => e.code === userId || e.attendanceCode === userId
+      );
+    }
+    if (department && department !== 'ALL') {
+      targetEmployees = targetEmployees.filter((e: any) => e.department === department);
+    }
 
     for (const emp of targetEmployees) {
       userStats.set(emp.code, {
@@ -1152,7 +1168,18 @@ export class AttendanceService {
       filter.date = { $regex: `^${month}` };
     }
     if (userId && userId !== 'ALL') {
-      filter.userId = userId;
+      const emp = await this.employeeModel.findOne({
+        $or: [{ code: userId }, { attendanceCode: userId }]
+      }).lean();
+      if (emp) {
+        filter.$or = [
+          { userId: emp.code },
+          { attendanceCode: emp.attendanceCode },
+          { userId: userId }
+        ];
+      } else {
+        filter.userId = userId;
+      }
     }
 
     const total = await this.logModel.countDocuments(filter);

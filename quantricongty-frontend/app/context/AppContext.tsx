@@ -7,6 +7,7 @@ import { getUserDisplayName, getUserPosition } from "@/app/utils/user";
 interface AppContextType {
   currentUser: any;
   isAuthLoaded: boolean;
+  isDataLoading: boolean;
   employees: Employee[];
   departments: any[];
   company: any;
@@ -42,6 +43,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isAuthLoaded, setIsAuthLoaded] = useState<boolean>(false);
+  const [isDataLoading, setIsDataLoading] = useState<boolean>(true);
 
   // Flow State: Wizard & Join Screen
   const [isWizardActive, setIsWizardActive] = useState<boolean>(false);
@@ -105,6 +107,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Fetch data from backend
   const loadData = async () => {
+    setIsDataLoading(true);
     try {
       const compRes = await fetch("http://localhost:5002/api/company");
       if (compRes.ok) {
@@ -160,6 +163,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch {
       setEmployees(SEED_EMPLOYEES);
       setDepartments(COMPANY_DEPARTMENTS);
+    } finally {
+      setIsDataLoading(false);
     }
   };
 
@@ -271,10 +276,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Sync to backend
     try {
+      const operatorEmployee = employees.find(
+        (e) =>
+          (e.code && e.code === currentUser?.code) ||
+          (e.email && e.email.toLowerCase() === (currentUser?.email || "").toLowerCase()) ||
+          e.name === currentUser?.name
+      ) || currentUser;
+      const operatorRole = (operatorEmployee?.role || currentUser?.role || "").toUpperCase();
+
       await fetch(`http://localhost:5002/api/employees/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedData),
+        body: JSON.stringify({ ...updatedData, operatorRole }),
       });
     } catch {
       // ignore
@@ -340,6 +353,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value={{
         currentUser,
         isAuthLoaded,
+        isDataLoading,
         employees,
         departments,
         company,

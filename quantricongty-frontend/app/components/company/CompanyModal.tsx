@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { X, Building, ShieldCheck, Save, Loader2, MapPin, Mail, Phone, Sparkles } from "lucide-react";
+import Modal from "@/app/components/ui/Modal";
 
 interface CompanyModalProps {
   company: any;
@@ -60,14 +61,14 @@ export default function CompanyModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in"
-      onClick={onClose}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="lg"
+      hideHeader
+      className="p-0 overflow-hidden"
     >
-      <div
-        className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="flex flex-col h-full overflow-hidden">
         {/* Header Xanh Đen Đồng Bộ (#1b365d) */}
         <div className="p-5 px-6 border-b border-slate-100 bg-[#1b365d] text-white flex items-center justify-between">
           <div className="flex items-center gap-3.5">
@@ -240,6 +241,6 @@ export default function CompanyModal({
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }

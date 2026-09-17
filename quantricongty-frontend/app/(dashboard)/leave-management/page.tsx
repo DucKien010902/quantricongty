@@ -17,9 +17,15 @@ import {
   FileSpreadsheet,
   Palmtree,
   Info,
+  ShieldAlert,
+  ShieldCheck,
+  Home,
 } from "lucide-react";
+import Link from "next/link";
 import { useApp } from "@/app/context/AppContext";
+import { usePermission } from "@/app/hooks/usePermission";
 import { Employee } from "@/app/data/seed-employees";
+import Modal from "@/app/components/ui/Modal";
 
 interface LeaveHistoryItem {
   id: string;
@@ -33,12 +39,55 @@ interface LeaveHistoryItem {
   createdAt: string;
 }
 
+import { ActionConfirmModal, ConfirmVariant } from "@/app/components/ui/ActionConfirmModal";
+import { StatusFeedbackModal, FeedbackType } from "@/app/components/ui/StatusFeedbackModal";
+
 export default function LeaveManagementPage() {
-  const { employees, departments, showToast, handleUpdateEmployee } = useApp();
+  const { currentUser, isAuthLoaded, employees, departments, showToast, handleUpdateEmployee } = useApp();
+  const { can } = usePermission();
+
+  const canViewLeaveManagement = can("leave_management.view");
+  const canManageLeave = can("leave_management.manage");
+  const canExportLeave = can("leave_management.export");
+
+  const currentEmployee = useMemo(() => {
+    if (!currentUser) return null;
+    return (
+      employees?.find(
+        (e) =>
+          (e.code && e.code === currentUser.code) ||
+          (e.email && e.email.toLowerCase() === (currentUser.email || "").toLowerCase()) ||
+          e.name === currentUser.name
+      ) || currentUser
+    );
+  }, [currentUser, employees]);
 
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedDept, setSelectedDept] = useState<string>("all");
   const [selectedAlertStatus, setSelectedAlertStatus] = useState<string>("all");
+
+  // Confirmation & Feedback modals state
+  const [confirmModalState, setConfirmModalState] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    variant: ConfirmVariant;
+    confirmText: string;
+    onConfirmAction: () => Promise<void> | void;
+    itemDetails?: { label: string; value: string }[];
+  } | null>(null);
+
+  const [feedbackState, setFeedbackState] = useState<{
+    isOpen: boolean;
+    type: FeedbackType;
+    title: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: "success",
+    title: "",
+    message: "",
+  });
 
   // State modal chỉnh sửa phép
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
@@ -156,8 +205,8 @@ export default function LeaveManagementPage() {
     });
   };
 
-  // Lưu cập nhật phép cho nhân viên
-  const handleSaveQuota = async (e: React.FormEvent) => {
+  // Lưu cập nhật phép cho nhân viên (có xác nhận)
+  const handleSaveQuotaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingEmp) return;
 
@@ -169,71 +218,184 @@ export default function LeaveManagementPage() {
     const totalAllowed = newAnnualQuota + newCarriedQuota + adj;
     const newRemaining = Math.max(0, totalAllowed - currentUsed);
 
-    await handleUpdateEmployee(editingEmp.id, {
-      annualLeaveQuota: newAnnualQuota + adj,
-      carriedOverLeave: newCarriedQuota,
-      usedLeave: currentUsed,
-      remainingLeave: newRemaining,
+    setConfirmModalState({
+      isOpen: true,
+      title: "Xác Nhận Cập Nhật Quỹ Phép",
+      description: `Bạn có chắc chắn muốn cập nhật chỉ tiêu phép cho nhân sự ${editingEmp.name}?`,
+      variant: "primary",
+      confirmText: "Lưu thay đổi",
+      itemDetails: [
+        { label: "Cán bộ nhân sự", value: editingEmp.name },
+        { label: "Phép năm 2026", value: `${newAnnualQuota} ngày` },
+        { label: "Phép tồn 2025", value: `${newCarriedQuota} ngày` },
+        { label: "Còn lại sau khi điều chỉnh", value: `${newRemaining} ngày` },
+      ],
+      onConfirmAction: async () => {
+        try {
+          await handleUpdateEmployee(editingEmp.id, {
+            annualLeaveQuota: newAnnualQuota + adj,
+            carriedOverLeave: newCarriedQuota,
+            usedLeave: currentUsed,
+            remainingLeave: newRemaining,
+          });
+          setEditingEmp(null);
+          setFeedbackState({
+            isOpen: true,
+            type: "success",
+            title: "Cập Nhật Quỹ Phép Thành Công!",
+            message: `Đã lưu cập nhật quỹ phép cho nhân sự ${editingEmp.name}. Phép mới còn lại là ${newRemaining} ngày.`,
+          });
+        } catch (err: any) {
+          setFeedbackState({
+            isOpen: true,
+            type: "error",
+            title: "Cập Nhật Thất Bại!",
+            message: err.message || "Có lỗi xảy ra khi cập nhật phép!",
+          });
+        }
+      },
     });
-
-    showToast(`Đã cập nhật thành công quỹ phép cho nhân sự ${editingEmp.name}!`);
-    setEditingEmp(null);
   };
 
-  // Khởi tạo phép năm 2026 hàng loạt cho các cán bộ chưa có dữ liệu
-  const handleBatchInitQuota = () => {
-    employees.forEach((emp) => {
-      const quota = emp.annualLeaveQuota !== undefined ? emp.annualLeaveQuota : 12;
-      const carried = emp.carriedOverLeave || 0;
-      const used = emp.usedLeave || 0;
-      const remaining = Math.max(0, quota + carried - used);
+  // Khởi tạo phép năm 2026 hàng loạt (có xác nhận)
+  const handleBatchInitQuotaPrompt = () => {
+    setConfirmModalState({
+      isOpen: true,
+      title: "Xác Nhận Khởi Tạo Phép Hàng Loạt",
+      description: "Bạn có chắc chắn muốn chuẩn hóa và khởi tạo chỉ tiêu quỹ phép năm 2026 cho toàn bộ cán bộ công ty?",
+      variant: "warning",
+      confirmText: "Khởi tạo hàng loạt",
+      itemDetails: [
+        { label: "Tổng số nhân sự", value: `${employees.length} cán bộ` },
+        { label: "Chỉ tiêu chuẩn", value: "12 ngày / năm" },
+      ],
+      onConfirmAction: async () => {
+        try {
+          employees.forEach((emp) => {
+            const quota = emp.annualLeaveQuota !== undefined ? emp.annualLeaveQuota : 12;
+            const carried = emp.carriedOverLeave || 0;
+            const used = emp.usedLeave || 0;
+            const remaining = Math.max(0, quota + carried - used);
 
-      handleUpdateEmployee(emp.id, {
-        annualLeaveQuota: quota,
-        carriedOverLeave: carried,
-        usedLeave: used,
-        remainingLeave: remaining,
-      });
+            handleUpdateEmployee(emp.id, {
+              annualLeaveQuota: quota,
+              carriedOverLeave: carried,
+              usedLeave: used,
+              remainingLeave: remaining,
+            });
+          });
+          setFeedbackState({
+            isOpen: true,
+            type: "success",
+            title: "Khởi Tạo Hàng Loạt Thành Công!",
+            message: `Đã chuẩn hóa và phân bổ chỉ tiêu quỹ phép năm 2026 cho toàn bộ ${employees.length} cán bộ nhân sự!`,
+          });
+        } catch (err: any) {
+          setFeedbackState({
+            isOpen: true,
+            type: "error",
+            title: "Khởi Tạo Thất Bại!",
+            message: err.message || "Có lỗi xảy ra khi khởi tạo hàng loạt!",
+          });
+        }
+      },
     });
-    showToast("Đã chuẩn hóa và khởi tạo quỹ phép năm 2026 cho toàn bộ cán bộ công ty!");
   };
 
   // Xuất file Excel báo cáo phép
   const handleExportLeaveReport = () => {
-    showToast("Đang kết xuất báo cáo tổng hợp quỹ phép năm 2026 (.XLSX)...");
+    setFeedbackState({
+      isOpen: true,
+      type: "info",
+      title: "Đang Kết Xuất Báo Cáo!",
+      message: "Đã tạo yêu cầu tải về file Excel báo cáo tổng hợp chỉ tiêu quỹ phép năm 2026 (.XLSX).",
+    });
   };
+
+  // Nếu đã nạp auth và người dùng không có quyền Quản lý phép: Chặn truy cập theo Ma trận phân quyền
+  if (isAuthLoaded && currentUser && !canViewLeaveManagement) {
+    return (
+      <div className="min-h-[65vh] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-3xl border border-slate-200/90 shadow-xl p-8 text-center space-y-5 animate-fade-in">
+          <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-100 shadow-inner">
+            <ShieldAlert className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+              Giới hạn quyền truy cập
+            </h2>
+            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+              Trang Quản lý phép nhân viên chỉ dành riêng cho <b>Quản trị viên (Admin)</b> và bộ phận <b>Hành chính - Nhân sự (HCNS)</b> để khởi tạo, cấp phát và điều chỉnh quỹ phép toàn công ty.
+            </p>
+          </div>
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600 font-medium text-left">
+            <div>Tài khoản: <b className="text-slate-900">{currentEmployee?.name || currentUser?.name}</b></div>
+            <div className="text-[11px] text-slate-500 mt-0.5">
+              Chức danh: {currentEmployee?.position || currentEmployee?.jobTitle || "Nhân viên"} • Ban: {currentEmployee?.department || "Chuyên môn"}
+            </div>
+          </div>
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+            <Link
+              href="/leave"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#1b365d] hover:bg-[#152a4a] text-white text-xs font-bold transition-all shadow-md shadow-[#1b365d]/20 flex items-center justify-center gap-2"
+            >
+              <Clock className="w-4 h-4" />
+              <span>Xem đơn phép của tôi</span>
+            </Link>
+            <Link
+              href="/"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all flex items-center justify-center gap-2"
+            >
+              <Home className="w-4 h-4" />
+              <span>Về trang chủ</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-12 animate-fade-in max-w-7xl mx-auto text-slate-800">
       {/* 1. HEADER CHUẨN TRANG XIN NGHĨ PHÉP (KHUNG TRẮNG SẠCH SẼ) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <CalendarCheck className="w-6 h-6 text-[#1b365d]" />
-            Quản lý phép nhân viên
-          </h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+              <CalendarCheck className="w-6 h-6 text-[#1b365d]" />
+              Quản lý phép nhân viên
+            </h1>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 shadow-2xs">
+              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Quyền: Quản trị Quỹ Phép toàn công ty</span>
+            </span>
+          </div>
           <p className="text-sm text-slate-500 font-medium mt-1">
             Theo dõi, khởi tạo, cập nhật chỉ tiêu phép năm và điều chỉnh phép cho từng nhân sự toàn công ty
           </p>
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
-          <button
-            type="button"
-            onClick={handleBatchInitQuota}
-            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer"
-          >
-            <Sparkles className="w-4 h-4 text-[#1b365d]" />
-            <span>Khởi tạo phép hàng loạt</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleExportLeaveReport}
-            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#1b365d] hover:bg-[#152a4a] text-white text-xs font-bold transition-all shadow-md shadow-[#1b365d]/20 cursor-pointer"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>Xuất báo cáo phép</span>
-          </button>
+          {canManageLeave && (
+            <button
+              type="button"
+              onClick={handleBatchInitQuotaPrompt}
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 text-[#1b365d]" />
+              <span>Khởi tạo phép hàng loạt</span>
+            </button>
+          )}
+          {canExportLeave && (
+            <button
+              type="button"
+              onClick={handleExportLeaveReport}
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#1b365d] hover:bg-[#152a4a] text-white text-xs font-bold transition-all shadow-md shadow-[#1b365d]/20 cursor-pointer"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>Xuất báo cáo phép</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -491,15 +653,17 @@ export default function LeaveManagementPage() {
                     {/* Thao tác */}
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditModal(emp)}
-                          className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
-                          title="Cập nhật chỉ tiêu quỹ phép năm"
-                        >
-                          <Edit3 className="w-3.5 h-3.5 text-[#1b365d]" />
-                          <span>Sửa phép</span>
-                        </button>
+                        {canManageLeave && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditModal(emp)}
+                            className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                            title="Cập nhật chỉ tiêu quỹ phép năm"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-[#1b365d]" />
+                            <span>Sửa phép</span>
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => setHistoryEmp(emp)}
@@ -520,8 +684,14 @@ export default function LeaveManagementPage() {
 
       {/* ================= MODAL CẬP NHẬT / KHỞI TẠO QUỸ PHÉP ================= */}
       {editingEmp && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden">
+        <Modal
+          isOpen={Boolean(editingEmp)}
+          onClose={() => setEditingEmp(null)}
+          size="lg"
+          hideHeader
+          className="p-0 overflow-hidden"
+        >
+          <div className="flex flex-col h-full overflow-hidden">
             {/* Header */}
             <div className="p-5 px-6 border-b border-slate-100 bg-[#1b365d] text-white flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -547,7 +717,7 @@ export default function LeaveManagementPage() {
             </div>
 
             {/* Body */}
-            <form onSubmit={handleSaveQuota} className="p-6 space-y-4 text-xs text-slate-700">
+            <form onSubmit={handleSaveQuotaSubmit} className="p-6 space-y-4 text-xs text-slate-700">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">
@@ -655,13 +825,19 @@ export default function LeaveManagementPage() {
               </div>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* ================= MODAL LỊCH SỬ XIN NGHỈ PHÉP ================= */}
       {historyEmp && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+        <Modal
+          isOpen={Boolean(historyEmp)}
+          onClose={() => setHistoryEmp(null)}
+          size="2xl"
+          hideHeader
+          className="p-0 overflow-hidden"
+        >
+          <div className="flex flex-col h-full overflow-hidden max-h-[85vh]">
             <div className="p-5 px-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <div className="flex items-center gap-3">
                 <img
@@ -740,8 +916,35 @@ export default function LeaveManagementPage() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
+
+      {/* MODAL XÁC NHẬN HÀNH ĐỘNG (CONFIRM MODAL) */}
+      {confirmModalState && (
+        <ActionConfirmModal
+          isOpen={confirmModalState.isOpen}
+          onClose={() => setConfirmModalState(null)}
+          onConfirm={() => {
+            const action = confirmModalState.onConfirmAction;
+            setConfirmModalState(null);
+            action();
+          }}
+          title={confirmModalState.title}
+          description={confirmModalState.description}
+          variant={confirmModalState.variant}
+          confirmText={confirmModalState.confirmText}
+          itemDetails={confirmModalState.itemDetails}
+        />
+      )}
+
+      {/* MODAL PHẢN HỒI TRẠNG THÁI (SUCCESS / FAILURE FEEDBACK MODAL) */}
+      <StatusFeedbackModal
+        isOpen={feedbackState.isOpen}
+        onClose={() => setFeedbackState({ ...feedbackState, isOpen: false })}
+        type={feedbackState.type}
+        title={feedbackState.title}
+        message={feedbackState.message}
+      />
     </div>
   );
 }

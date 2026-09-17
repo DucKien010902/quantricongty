@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { X, Edit2, Loader2, Save } from "lucide-react";
 import { Employee } from "@/app/data/seed-employees";
+import Modal from "@/app/components/ui/Modal";
 
 interface EditEmployeeModalProps {
   employee: Employee | null;
@@ -82,14 +83,14 @@ export default function EditEmployeeModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in"
-      onClick={onClose}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="xl"
+      hideHeader
+      className="p-0 overflow-hidden"
     >
-      <div
-        className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-950/40">
           <div className="flex items-center gap-2.5">
@@ -389,6 +390,6 @@ export default function EditEmployeeModal({
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }

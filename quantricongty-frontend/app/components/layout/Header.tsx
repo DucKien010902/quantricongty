@@ -5,6 +5,7 @@ import { Search, Bell, ShieldCheck, LogOut, PanelLeftClose, PanelLeftOpen, X } f
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useApp } from "@/app/context/AppContext";
+import { usePermission } from "@/app/hooks/usePermission";
 import { getUserDisplayName, getUserPosition } from "@/app/utils/user";
 
 const ROUTE_TITLES: Record<string, string> = {
@@ -33,6 +34,7 @@ export default function Header() {
     isSidebarCollapsed,
     toggleSidebar,
   } = useApp();
+  const { isSystemAdmin } = usePermission();
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
@@ -111,14 +113,15 @@ export default function Header() {
           <div
             onClick={() => router.push("/profile")}
             className="flex items-center gap-2.5 select-none cursor-pointer hover:opacity-85 transition-opacity"
-            title="Xem trang cá nhân của bạn"
+            title={isSystemAdmin ? "Trang cá nhân (Quản trị viên hệ thống)" : "Xem trang cá nhân của bạn"}
           >
-            <div className="relative w-9 h-9 rounded-full overflow-hidden ring-2 ring-slate-200/90 flex-shrink-0 shadow-xs bg-slate-100">
+            <div
+              className={`relative w-9 h-9 rounded-full overflow-hidden flex-shrink-0 shadow-xs bg-slate-100 transition-all ring-2 ring-[#1b365d] border-2 border-white shadow-xs`}
+            >
               <Image
                 src={
-                  currentUser?.avatar?.startsWith("http") || currentUser?.avatar?.startsWith("/")
-                    ? currentUser.avatar
-                    : "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80"
+                  currentUser?.avatar ||
+                  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80"
                 }
                 alt={displayName}
                 fill

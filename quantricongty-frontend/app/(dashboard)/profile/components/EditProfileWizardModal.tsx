@@ -16,6 +16,9 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { Employee, DepartmentInfo } from "@/app/data/seed-employees";
+import { useApp } from "@/app/context/AppContext";
+import { usePermission } from "@/app/hooks/usePermission";
+import Modal from "@/app/components/ui/Modal";
 
 interface EditProfileWizardModalProps {
   isOpen: boolean;
@@ -41,6 +44,22 @@ export default function EditProfileWizardModal({
   onSave,
   isSelfProfile = false,
 }: EditProfileWizardModalProps) {
+  const { currentUser: authUser, employees } = useApp();
+  const { can, isAdmin } = usePermission();
+
+  // Kiểm tra quyền từ Ma trận phân quyền (employees.change_role)
+  const isOperatorAdmin = React.useMemo(() => {
+    const operatorEmployee = employees.find(
+      (e) =>
+        (e.code && e.code === authUser?.code) ||
+        (e.email && e.email.toLowerCase() === (authUser?.email || "").toLowerCase()) ||
+        e.name === authUser?.name
+    ) || authUser;
+
+    const role = (operatorEmployee?.role || authUser?.role || "").toUpperCase();
+    return role === "ADMIN" || isAdmin || can("employees.change_role");
+  }, [authUser, isAdmin, can, employees]);
+
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [formData, setFormData] = useState<any>({
     // Step 1: Cá nhân
@@ -225,14 +244,24 @@ export default function EditProfileWizardModal({
         email: currentUser?.email || currentUser?.workEmail || "",
         workEmail: currentUser?.workEmail || currentUser?.email || "",
       };
+    } else if (!isOperatorAdmin) {
+      // CÁN BỘ HCNS HOẶC NGƯỜI DÙNG KHÔNG PHẢI ADMIN:
+      // Tuyệt đối không cho phép thay đổi Vai trò hệ thống (role)
+      safeData.role = currentUser?.role || "USER";
     }
     onSave(safeData);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl border border-slate-200 flex flex-col max-h-[92vh] overflow-hidden">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="3xl"
+      hideHeader
+      className="p-0 overflow-hidden"
+    >
+      <div className="flex flex-col h-full overflow-hidden">
         {/* Header Modal */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
           <div>
@@ -808,19 +837,42 @@ export default function EditProfileWizardModal({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Vai trò hệ thống (Quyền truy cập)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Vai trò hệ thống (Quyền truy cập)
+                    </label>
+                    {!isOperatorAdmin && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                        <Lock className="w-3 h-3 text-amber-600" />
+                        Chỉ Admin sửa được
+                      </span>
+                    )}
+                  </div>
                   <select
+                    disabled={!isOperatorAdmin}
                     value={formData.role}
                     onChange={(e) => handleChange("role", e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 transition-all font-medium"
+                    className={`w-full px-3.5 py-2.5 rounded-xl text-sm border font-medium transition-all ${
+                      !isOperatorAdmin
+                        ? "bg-slate-100/90 border-slate-200 text-slate-500 cursor-not-allowed select-none shadow-inner"
+                        : "bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 cursor-pointer"
+                    }`}
                   >
                     <option value="ADMIN">ADMIN (Quản trị viên toàn hệ thống)</option>
                     <option value="HCNS">HCNS (Quản lý Nhân sự & Chấm công)</option>
                     <option value="LEADER">LEADER (Lãnh đạo / Trưởng ban)</option>
                     <option value="USER">USER (Cán bộ nhân viên)</option>
                   </select>
+                  {!isOperatorAdmin ? (
+                    <p className="text-[11px] text-amber-700/90 mt-1 font-medium flex items-center gap-1">
+                      <span>🔒 Cán bộ HCNS không có quyền thay đổi vai trò hệ thống của nhân sự.</span>
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-emerald-700 mt-1 font-medium flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Bạn có quyền Quản trị viên (Admin) để cấu hình vai trò hệ thống.</span>
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -1221,6 +1273,6 @@ export default function EditProfileWizardModal({
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
