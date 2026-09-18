@@ -76,6 +76,27 @@ export class Approval {
   @Prop({ default: '' })
   handoverTo: string; // Người nhận bàn giao công việc
 
+  @Prop({ default: '' })
+  destination: string; // Địa điểm công tác
+
+  @Prop({ default: '0 đ' })
+  budget: string; // Tạm ứng / Chi phí dự toán
+
+  @Prop({ default: 'Tự túc' })
+  transportation: string; // Phương tiện di chuyển
+
+  @Prop({ default: 'full' })
+  leaveShift: string; // full | morning | afternoon
+
+  @Prop({ default: '' })
+  leaveShiftLabel: string;
+
+  @Prop({ default: 'morning' })
+  startSession: string;
+
+  @Prop({ default: 'afternoon' })
+  endSession: string;
+
   @Prop({ type: [String], default: [] })
   attachments: string[]; // Tệp đính kèm
 

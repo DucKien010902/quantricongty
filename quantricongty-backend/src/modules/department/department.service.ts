@@ -122,4 +122,21 @@ export class DepartmentService {
   async createDepartment(data: Partial<Department>): Promise<Department> {
     return this.deptModel.create(data);
   }
+
+  async updateDepartment(id: string, data: Partial<Department>): Promise<any> {
+    // Tìm theo _id hoặc code
+    let updated = await this.deptModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+    if (!updated) {
+      updated = await this.deptModel.findOneAndUpdate({ code: id }, { $set: data }, { new: true }).exec();
+    }
+    return updated;
+  }
+
+  async deleteDepartment(id: string): Promise<any> {
+    let res = await this.deptModel.findByIdAndDelete(id).exec();
+    if (!res) {
+      res = await this.deptModel.findOneAndDelete({ code: id }).exec();
+    }
+    return res;
+  }
 }

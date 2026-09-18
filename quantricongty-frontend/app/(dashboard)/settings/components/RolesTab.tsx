@@ -400,13 +400,12 @@ export default function RolesTab({
                   <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{pos.description}</p>
                 </div>
                 <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-medium border shrink-0 ${
-                    pos.defaultRole === "ADMIN"
+                  className={`px-2 py-0.5 rounded text-[10px] font-medium border shrink-0 ${pos.defaultRole === "ADMIN"
                       ? "bg-blue-50 text-[#1b365d] border-blue-200"
                       : pos.defaultRole === "LEADER"
-                      ? "bg-sky-50 text-sky-700 border-sky-200"
-                      : "bg-slate-100 text-slate-600 border-slate-200"
-                  }`}
+                        ? "bg-sky-50 text-sky-700 border-sky-200"
+                        : "bg-slate-100 text-slate-600 border-slate-200"
+                    }`}
                 >
                   {pos.defaultRole}
                 </span>
@@ -434,7 +433,7 @@ export default function RolesTab({
         <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
           <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-[#1b365d]" />
-            <span>Ma Trận Phân Quyền</span>
+            <span>Phân Quyền</span>
           </h2>
 
           <button
@@ -443,7 +442,7 @@ export default function RolesTab({
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1b365d] hover:bg-[#152a4a] text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
           >
             <Save className="w-3.5 h-3.5" />
-            <span>Lưu Ma Trận</span>
+            <span>Lưu Phân Quyền</span>
           </button>
         </div>
 

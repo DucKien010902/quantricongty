@@ -5,6 +5,8 @@ import { Calendar, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
 
 interface AttendanceStatsCardsProps {
   totalStandardDays: number;
+  weekendDays?: number;
+  holidayDays?: number;
   totalDuCong: number;
   totalThieuPhut: number;
   totalPunchRecords: number;
@@ -12,6 +14,8 @@ interface AttendanceStatsCardsProps {
 
 export default function AttendanceStatsCards({
   totalStandardDays,
+  weekendDays = 8,
+  holidayDays = 0,
   totalDuCong,
   totalThieuPhut,
   totalPunchRecords,
@@ -33,7 +37,10 @@ export default function AttendanceStatsCards({
             </span>
             <span className="text-sm font-medium text-slate-500">ngày</span>
           </div>
-          <p className="text-xs text-slate-500 mt-1 font-medium">Trừ 8 ngày nghỉ T7/CN & 1 ngày Lễ</p>
+          <p className="text-xs text-slate-500 mt-1 font-medium">
+            Trừ {weekendDays} ngày nghỉ T7/CN
+            {holidayDays > 0 ? ` & ${holidayDays} ngày Lễ` : ""}
+          </p>
         </div>
       </div>
 

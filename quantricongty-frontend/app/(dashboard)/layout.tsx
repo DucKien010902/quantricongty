@@ -77,7 +77,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     return (
       <LoginScreen
         onLoginSuccess={handleLogin}
-        onStartWizard={() => setIsWizardActive(true)}
         onGoToJoin={() => setIsJoinActive(true)}
       />
     );
@@ -103,10 +102,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         company={company}
         isOpen={isCompanyModalOpen}
         onClose={() => setIsCompanyModalOpen(false)}
-        onOpenWizard={() => {
-          setIsCompanyModalOpen(false);
-          setIsWizardActive(true);
-        }}
         onUpdate={() => {
           loadData();
           showToast("Đã cập nhật thông tin doanh nghiệp!");

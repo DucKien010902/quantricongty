@@ -64,7 +64,7 @@ export default function CompanyModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      size="lg"
+      size="2xl"
       hideHeader
       className="p-0 overflow-hidden"
     >
@@ -206,38 +206,26 @@ export default function CompanyModal({
           </div>
 
           {/* Footer Buttons */}
-          <div className="pt-5 border-t border-slate-100 flex items-center justify-between gap-3">
-            {onOpenWizard ? (
-              <button
-                type="button"
-                onClick={onOpenWizard}
-                className="text-sm font-bold text-[#1b365d] hover:underline flex items-center gap-1.5 cursor-pointer"
-              >
-                <Sparkles className="w-4 h-4 text-[#1b365d]" /> Mở Wizard Khởi Tạo Lại
-              </button>
-            ) : <div />}
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl border border-slate-200 font-bold text-slate-700 hover:bg-slate-100 transition-colors text-sm cursor-pointer"
-              >
-                Đóng
-              </button>
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="flex items-center gap-2 px-6 py-2.5 sm:px-7 sm:py-3 rounded-xl bg-[#1b365d] hover:bg-[#152a4a] text-white font-bold shadow-md shadow-[#1b365d]/25 disabled:opacity-50 transition-all text-sm cursor-pointer"
-              >
-                {isSaving ? (
-                  <Loader2 className="w-4.5 h-4.5 animate-spin" />
-                ) : (
-                  <Save className="w-4.5 h-4.5" />
-                )}
-                <span>{isSaving ? "Đang lưu..." : "Lưu Thông Tin"}</span>
-              </button>
-            </div>
+          <div className="pt-5 border-t border-slate-100 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl border border-slate-200 font-bold text-slate-700 hover:bg-slate-100 transition-colors text-sm cursor-pointer"
+            >
+              Đóng
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="flex items-center gap-2 px-6 py-2.5 sm:px-7 sm:py-3 rounded-xl bg-[#1b365d] hover:bg-[#152a4a] text-white font-bold shadow-md shadow-[#1b365d]/25 disabled:opacity-50 transition-all text-sm cursor-pointer"
+            >
+              {isSaving ? (
+                <Loader2 className="w-4.5 h-4.5 animate-spin" />
+              ) : (
+                <Save className="w-4.5 h-4.5" />
+              )}
+              <span>{isSaving ? "Đang lưu..." : "Lưu Thông Tin"}</span>
+            </button>
           </div>
         </form>
       </div>

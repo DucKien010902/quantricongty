@@ -15,6 +15,7 @@ import {
   ClipboardCheck,
   Sparkles,
   FileSignature,
+  Briefcase,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -30,7 +31,6 @@ export default function Sidebar() {
     currentUser,
     employees,
     setIsCompanyModalOpen,
-    setIsWizardActive,
     isSidebarCollapsed,
   } = useApp();
 
@@ -176,6 +176,7 @@ export default function Sidebar() {
       items: [
         { href: "/attendance", label: "Chấm công - Thời gian làm việc", icon: CalendarCheck },
         { href: "/leave", label: "Xin nghỉ phép", icon: Clock },
+        { href: "/business-trips", label: "Đăng ký & Lịch Công tác", icon: Briefcase },
         ...(canAccessApprovals
           ? [
             {
@@ -305,17 +306,6 @@ export default function Sidebar() {
           >
             <Building className="w-4.5 h-4.5 text-slate-500 stroke-[2.3] shrink-0" />
             <span>Hồ sơ công ty</span>
-          </button>
-
-          {/* Wizard Khởi tạo */}
-          <button
-            type="button"
-            onClick={() => setIsWizardActive(true)}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[14.5px] font-semibold transition-all text-[#1b365d] bg-blue-100/70 hover:bg-blue-100/90 cursor-pointer"
-            title="Wizard Khởi Tạo"
-          >
-            <Sparkles className="w-4.5 h-4.5 text-[#1b365d] stroke-[2.3] shrink-0" />
-            <span>Wizard Khởi Tạo</span>
           </button>
         </div>
       </nav>

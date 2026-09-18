@@ -141,7 +141,7 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
               <div className="p-3.5 rounded-xl border border-blue-200 bg-blue-50/50">
                 <span className="text-blue-800 font-semibold block mb-1">Số ngày làm việc</span>
                 <span className="font-extrabold font-mono text-blue-900 text-sm">
-                  {item.daysCount} ngày (trừ T7, CN)
+                  {item.daysCount} ngày {item.leaveShiftLabel ? `(${item.leaveShiftLabel})` : item.daysCount === 0.5 ? "(Nửa ngày)" : "(trừ T7, CN)"}
                 </span>
               </div>
               <div className="p-3.5 rounded-xl border border-slate-200 bg-white">

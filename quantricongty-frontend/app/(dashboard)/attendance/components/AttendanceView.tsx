@@ -387,6 +387,8 @@ export default function AttendanceView({
     switch (status) {
       case "DU_CONG":
         return "Đủ công (1.0)";
+      case "CONG_TAC":
+        return "Đi công tác (CT)";
       case "THIEU_PHUT":
         return "Thiếu phút (0.0)";
       case "THIEU_GIO_RA":
@@ -400,7 +402,7 @@ export default function AttendanceView({
       case "NGHI_LE":
         return "Nghỉ lễ";
       case "NGHI_PHEP":
-        return "Nghỉ phép (P - 1.0)";
+        return "Nghỉ phép (P)";
       default:
         return status;
     }
@@ -444,6 +446,8 @@ export default function AttendanceView({
       {/* TOP 4 STATS CARDS */}
       <AttendanceStatsCards
         totalStandardDays={totalStandardDays}
+        weekendDays={monthlySummary?.weekendDays || 8}
+        holidayDays={monthlySummary?.holidayDays || 0}
         totalDuCong={totalDuCong}
         totalThieuPhut={totalThieuPhut}
         totalPunchRecords={totalPunchRecords}

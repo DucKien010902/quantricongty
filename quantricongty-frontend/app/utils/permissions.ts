@@ -90,6 +90,15 @@ export const DEFAULT_PERMISSION_MATRIX: PermissionGroup[] = [
         hr: true,
       },
       {
+        id: "departments.manage",
+        label: "Thao tác với Ban / Phòng (Thêm, sửa, xóa cơ cấu phòng ban)",
+        note: "Chỉ Quản trị viên (ADMIN) mới có quyền tạo mới, chỉnh sửa hoặc xóa ban/phòng",
+        admin: true,
+        leader: false,
+        employee: false,
+        hr: false,
+      },
+      {
         id: "leave_management.view",
         label: "Quản lý quỹ phép nhân viên (Xem toàn công ty)",
         note: "Quản trị ngày phép năm và hạn mức nghỉ",
@@ -196,16 +205,45 @@ export function getStoredPermissionMatrix(): PermissionGroup[] {
 }
 
 /**
- * Lưu ma trận phân quyền mới
+ * Lưu ma trận phân quyền mới (Đồng bộ cả LocalStorage và Backend MongoDB)
  */
 export function saveStoredPermissionMatrix(matrix: PermissionGroup[]): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(matrix));
     window.dispatchEvent(new Event("permission-changed"));
+
+    // Sync to backend MongoDB database
+    fetch("http://localhost:5002/api/permissions/matrix", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matrix }),
+    }).catch(() => {
+      // ignore
+    });
   } catch (e) {
     console.error("Lỗi lưu ma trận phân quyền:", e);
   }
+}
+
+/**
+ * Tải ma trận phân quyền từ Backend MongoDB và cập nhật cache LocalStorage
+ */
+export async function fetchBackendPermissions(): Promise<PermissionGroup[]> {
+  try {
+    const res = await fetch("http://localhost:5002/api/permissions/matrix");
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        window.dispatchEvent(new Event("permission-changed"));
+        return data;
+      }
+    }
+  } catch {
+    // fallback
+  }
+  return getStoredPermissionMatrix();
 }
 
 /**
@@ -370,9 +408,38 @@ export function saveStoredSystemAdmins(slots: SystemAdminSlot[]): void {
     const sanitized = slots.slice(0, 2);
     localStorage.setItem(SYSTEM_ADMINS_STORAGE_KEY, JSON.stringify(sanitized));
     window.dispatchEvent(new Event("system-admins-changed"));
+
+    // Sync to backend MongoDB database
+    fetch("http://localhost:5002/api/permissions/system-admins", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ systemAdmins: sanitized }),
+    }).catch(() => {
+      // ignore
+    });
   } catch (e) {
     console.error("Lỗi lưu danh sách Quản trị viên hệ thống:", e);
   }
+}
+
+/**
+ * Tải danh sách Quản trị viên hệ thống từ Backend MongoDB
+ */
+export async function fetchBackendSystemAdmins(): Promise<SystemAdminSlot[]> {
+  try {
+    const res = await fetch("http://localhost:5002/api/permissions/system-admins");
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(SYSTEM_ADMINS_STORAGE_KEY, JSON.stringify(data));
+        window.dispatchEvent(new Event("system-admins-changed"));
+        return data;
+      }
+    }
+  } catch {
+    // fallback
+  }
+  return getStoredSystemAdmins();
 }
 
 /**

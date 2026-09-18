@@ -9,6 +9,7 @@ import { EmployeeModule } from './modules/employee/employee.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { AttendanceModule } from './modules/attendance/attendance.module.js';
 import { ApprovalModule } from './modules/approval/approval.module.js';
+import { PermissionModule } from './modules/permission/permission.module.js';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ApprovalModule } from './modules/approval/approval.module.js';
     AuthModule,
     AttendanceModule,
     ApprovalModule,
+    PermissionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

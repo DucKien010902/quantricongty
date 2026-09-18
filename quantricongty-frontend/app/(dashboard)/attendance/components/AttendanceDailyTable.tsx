@@ -144,12 +144,14 @@ export default function AttendanceDailyTable({
                   const isWeekend = row.status === "CUOI_TUAN";
                   const isHoliday = row.status === "NGHI_LE";
                   const isLeave = row.status === "NGHI_PHEP";
+                  const isTrip = row.status === "CONG_TAC";
 
                   // Hôm nào thiếu công thì vàng TOÀN BỘ Ô CẢ CỘT GIỜ VÀO VÀ GIỜ RA
                   const isThieuCong =
                     !isWeekend &&
                     !isHoliday &&
                     !isLeave &&
+                    !isTrip &&
                     (row.workCredit < 1.0 ||
                       row.missingMinutes > 0 ||
                       row.status === "THIEU_PHUT" ||
@@ -297,6 +299,10 @@ export default function AttendanceDailyTable({
                         ) : isLeave ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
                             {row.note || "Nghỉ phép"}
+                          </span>
+                        ) : isTrip ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            {row.note || "Đi công tác"}
                           </span>
                         ) : (
                           row.note || "--"

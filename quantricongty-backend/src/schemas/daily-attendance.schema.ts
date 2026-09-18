@@ -5,13 +5,14 @@ export type DailyAttendanceDocument = DailyAttendance & Document;
 
 export enum DailyStatus {
   DU_CONG = 'DU_CONG',         // Đủ công 8h (1.0) - Màu xanh lá #10B981
+  CONG_TAC = 'CONG_TAC',       // Đi công tác (1.0 hoặc 0.5) - Màu chàm/xanh lá #6366F1 / #10B981 (Ký hiệu 'CT')
   THIEU_PHUT = 'THIEU_PHUT',   // Thiếu X phút (0.0) - Màu vàng cam #F59E0B
   THIEU_GIO_VAO = 'THIEU_GIO_VAO', // Quên quẹt vào (0.0) - Màu vàng cam #F59E0B
   THIEU_GIO_RA = 'THIEU_GIO_RA',   // Quên quẹt ra (0.0) - Màu vàng cam #F59E0B
   MISS = 'MISS',               // Vắng mặt (0.0) - Màu đỏ #EF4444
   CUOI_TUAN = 'CUOI_TUAN',     // Nghỉ cuối tuần (0.0) - Màu xám #64748B
   NGHI_LE = 'NGHI_LE',         // Nghỉ lễ / Cty (0.0) - Màu tím #8B5CF6
-  NGHI_PHEP = 'NGHI_PHEP',     // Nghỉ phép có lương (1.0) - Màu xanh lam #3B82F6 (Ký hiệu 'P')
+  NGHI_PHEP = 'NGHI_PHEP',     // Nghỉ phép có lương (1.0 hoặc 0.5) - Màu xanh lam #3B82F6 (Ký hiệu 'P')
 }
 
 @Schema({ timestamps: true })

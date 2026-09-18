@@ -443,8 +443,13 @@ export class AttendanceService {
         );
 
         const existingRecord = await this.dailyModel.findOne({ userId: emp.code, date: dateStr }).lean();
-        if (existingRecord && (existingRecord as any).status === DailyStatus.NGHI_PHEP && userLogs.length === 0) {
-          // Giữ nguyên bản ghi nghỉ phép đã được phê duyệt hợp lệ
+        if (
+          existingRecord &&
+          ((existingRecord as any).status === DailyStatus.NGHI_PHEP ||
+           (existingRecord as any).status === DailyStatus.CONG_TAC) &&
+          userLogs.length === 0
+        ) {
+          // Giữ nguyên bản ghi nghỉ phép hoặc đi công tác đã được phê duyệt hợp lệ
           continue;
         }
 
@@ -1034,12 +1039,19 @@ export class AttendanceService {
     const holidayDates = new Set(holidays.map((h) => h.date));
 
     let standardDays = 0;
+    let weekendDays = 0;
+    let holidayDays = 0;
+
     for (let day = 1; day <= totalDays; day++) {
       const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const d = new Date(dateStr);
       const dow = d.getDay();
       const isOffDay = offDayNumbers.includes(dow);
-      if (!isOffDay && !holidayDates.has(dateStr)) {
+      if (isOffDay) {
+        weekendDays++;
+      } else if (holidayDates.has(dateStr)) {
+        holidayDays++;
+      } else {
         standardDays++;
       }
     }
@@ -1065,6 +1077,7 @@ export class AttendanceService {
       department: string;
       workCredit: number;
       leaveCredit: number;
+      tripCredit: number;
       workingDays: number;
       missingMinutes: number;
       overtimeMinutes: number;
@@ -1094,6 +1107,7 @@ export class AttendanceService {
         department: emp.department || 'Nhân sự',
         workCredit: 0,
         leaveCredit: 0,
+        tripCredit: 0,
         workingDays: 0,
         missingMinutes: 0,
         overtimeMinutes: 0,
@@ -1110,7 +1124,12 @@ export class AttendanceService {
       }
 
       if (record.status === DailyStatus.NGHI_PHEP) {
-        stat.leaveCredit += record.workCredit || 1.0;
+        stat.leaveCredit += record.workCredit || 0;
+      } else if (record.status === DailyStatus.CONG_TAC) {
+        stat.tripCredit += record.workCredit || 0;
+      } else if (record.status === DailyStatus.NGHI_LE || record.status === DailyStatus.CUOI_TUAN) {
+        // Ngày lễ / cuối tuần đã được trừ khỏi Chuẩn công tháng (standardDays), không cộng dồn vào công đi làm
+        if (record.status === DailyStatus.NGHI_LE) stat.holidayDays++;
       } else {
         stat.workCredit += record.workCredit || 0;
         if (record.workCredit > 0) stat.workingDays++;
@@ -1119,7 +1138,6 @@ export class AttendanceService {
       stat.missingMinutes += record.missingMinutes || 0;
       stat.overtimeMinutes += record.overtimeMinutes || 0;
       if (record.status === DailyStatus.MISS) stat.missDays++;
-      if (record.status === DailyStatus.NGHI_LE) stat.holidayDays++;
     }
 
     // Format list
@@ -1127,7 +1145,7 @@ export class AttendanceService {
       .sort((a, b) => a.userId.localeCompare(b.userId, undefined, { numeric: true }))
       .map((item, index) => {
         const congDiLam = Math.round(item.workCredit * 10) / 10;
-        const congTac = 0;
+        const congTac = Math.round((item.tripCredit || 0) * 10) / 10;
         const congPhep = Math.round((item.leaveCredit || 0) * 10) / 10;
         const tongCong = Math.round((congDiLam + congTac + congPhep) * 10) / 10;
 
@@ -1152,6 +1170,8 @@ export class AttendanceService {
     return {
       month: targetMonth,
       standardDays,
+      weekendDays,
+      holidayDays,
       totalEmployees: summaryList.length,
       data: summaryList,
     };

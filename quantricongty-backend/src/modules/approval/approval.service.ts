@@ -248,20 +248,27 @@ export class ApprovalService {
       endDate: data.endDate || data.startDate || '',
       daysCount,
       dates,
+      destination: data.destination || '',
+      budget: data.budget || '0 đ',
+      transportation: data.transportation || 'Tự túc',
+      leaveShift: data.leaveShift || 'full',
+      leaveShiftLabel: data.leaveShiftLabel || '',
+      startSession: data.startSession || 'morning',
+      endSession: data.endSession || 'afternoon',
       handoverTo: data.handoverTo || '',
       attachments: data.attachments || [],
       leaderApproval: {
         approvedBy: isAutoApproved ? emp?.code || data.requesterCode : '',
         approvedByName: isAutoApproved ? emp?.name || data.requesterName : '',
         status: isAutoApproved ? 'approved' : isC1Skipped ? 'skipped' : 'pending',
-        note: isAutoApproved ? 'Đơn của Trưởng phòng HCNS (Tự động duyệt)' : isC1Skipped ? skipReason : '',
+        note: isAutoApproved ? 'Đơn của Admin nghiệp vụ (Tự động duyệt)' : isC1Skipped ? skipReason : '',
         time: isAutoApproved ? timeNow : '',
       },
       hrApproval: {
         approvedBy: isAutoApproved ? emp?.code || data.requesterCode : '',
         approvedByName: isAutoApproved ? emp?.name || data.requesterName : '',
         status: isAutoApproved ? 'approved' : 'pending',
-        note: isAutoApproved ? 'Tự động duyệt và ghi nhận công cho Trưởng phòng HCNS' : '',
+        note: isAutoApproved ? 'Tự động duyệt và ghi nhận công cho Admin nghiệp vụ' : '',
         time: isAutoApproved ? timeNow : '',
       },
       history: historyList,
@@ -293,17 +300,80 @@ export class ApprovalService {
             ? 'Nghỉ ốm BHXH'
             : 'Nghỉ việc riêng không lương';
 
-        for (const dateStr of dates) {
+        for (let i = 0; i < dates.length; i++) {
+          const dateStr = dates[i];
+          let credit = 1.0;
+          if (isUnpaid) {
+            credit = 0.0;
+          } else if (dates.length === 1) {
+            credit = daysCount || 1.0;
+          } else {
+            if (i === 0 && data.startSession === 'afternoon') credit = 0.5;
+            else if (i === dates.length - 1 && data.endSession === 'morning') credit = 0.5;
+            else credit = 1.0;
+          }
+
+          const hours = credit * 8.0;
+          const timeText = credit === 0.5 ? '4h 00p' : credit === 1.0 ? '8h 00p' : `${hours}h 00p`;
+          const shiftNote = credit === 0.5 ? ' (Nửa ngày - 0.5)' : '';
+
           await this.dailyModel.updateOne(
             { userId: emp?.code || data.requesterCode, date: dateStr },
             {
               $set: {
-                status: DailyStatus.NGHI_PHEP,
-                workCredit: isUnpaid ? 0.0 : 1.0,
-                missingMinutes: 0,
-                note: noteText,
-                department: emp?.department || data.department,
+                userId: emp?.code || data.requesterCode,
                 name: emp?.name || data.requesterName,
+                department: emp?.department || data.department,
+                date: dateStr,
+                firstIn: '',
+                lastOut: '',
+                punchCount: 0,
+                status: isUnpaid ? DailyStatus.MISS : DailyStatus.NGHI_PHEP,
+                workHours: hours,
+                workTimeText: timeText,
+                workCredit: credit,
+                missingMinutes: 0,
+                note: `${noteText}${shiftNote} (Ký hiệu: P)`,
+              },
+            },
+            { upsert: true },
+          );
+        }
+      }
+
+      if ((data.type === ApprovalType.TRIP || data.type === 'trip') && dates && dates.length > 0) {
+        for (let i = 0; i < dates.length; i++) {
+          const dateStr = dates[i];
+          let credit = 1.0;
+          if (dates.length === 1) {
+            credit = daysCount || 1.0;
+          } else {
+            if (i === 0 && data.startSession === 'afternoon') credit = 0.5;
+            else if (i === dates.length - 1 && data.endSession === 'morning') credit = 0.5;
+            else credit = 1.0;
+          }
+
+          const hours = credit * 8.0;
+          const timeText = credit === 0.5 ? '4h 00p' : '8h 00p';
+          const shiftNote = credit === 0.5 ? ' (Nửa ngày)' : '';
+
+          await this.dailyModel.updateOne(
+            { userId: emp?.code || data.requesterCode, date: dateStr },
+            {
+              $set: {
+                userId: emp?.code || data.requesterCode,
+                name: emp?.name || data.requesterName,
+                department: emp?.department || data.department,
+                date: dateStr,
+                firstIn: (i === 0 && data.startSession === 'afternoon') ? '13:30' : '08:00',
+                lastOut: (i === dates.length - 1 && data.endSession === 'morning') ? '12:00' : '17:30',
+                punchCount: 2,
+                status: DailyStatus.CONG_TAC,
+                workHours: hours,
+                workTimeText: timeText,
+                workCredit: credit,
+                missingMinutes: 0,
+                note: `Đi công tác tại ${data.destination || data.title}${shiftNote} (Ký hiệu: CT)`,
               },
             },
             { upsert: true },
@@ -440,19 +510,35 @@ export class ApprovalService {
         }
       }
 
-      // 2. TỰ ĐỘNG ĐỒNG BỘ SANG BẢNG CHẤM CÔNG (KÝ HIỆU P, 1.0 CÔNG)
+      // 2. TỰ ĐỘNG ĐỒNG BỘ SANG BẢNG CHẤM CÔNG (KÝ HIỆU P)
       if (item.type === ApprovalType.LEAVE && item.dates && item.dates.length > 0) {
         const isUnpaid = item.leaveType === LeaveType.UNPAID;
         const noteText =
           item.leaveType === LeaveType.ANNUAL
-            ? 'Nghỉ phép năm (Đã duyệt)'
+            ? 'Nghỉ phép năm'
             : item.leaveType === LeaveType.PERSONAL
             ? 'Nghỉ việc riêng hưởng lương'
             : item.leaveType === LeaveType.SICK
             ? 'Nghỉ ốm BHXH'
             : 'Nghỉ việc riêng không lương';
 
-        for (const dateStr of item.dates) {
+        for (let i = 0; i < item.dates.length; i++) {
+          const dateStr = item.dates[i];
+          let credit = 1.0;
+          if (isUnpaid) {
+            credit = 0.0;
+          } else if (item.dates.length === 1) {
+            credit = item.daysCount || 1.0;
+          } else {
+            if (i === 0 && item.startSession === 'afternoon') credit = 0.5;
+            else if (i === item.dates.length - 1 && item.endSession === 'morning') credit = 0.5;
+            else credit = 1.0;
+          }
+
+          const hours = credit * 8.0;
+          const timeText = credit === 0.5 ? '4h 00p' : credit === 1.0 ? '8h 00p' : `${hours}h 00p`;
+          const shiftNote = credit === 0.5 ? ' (Nửa ngày - 0.5)' : '';
+
           await this.dailyModel.updateOne(
             { userId: item.requesterCode, date: dateStr },
             {
@@ -465,11 +551,52 @@ export class ApprovalService {
                 lastOut: '',
                 punchCount: 0,
                 status: isUnpaid ? DailyStatus.MISS : DailyStatus.NGHI_PHEP,
-                workHours: isUnpaid ? 0 : 8.0,
-                workTimeText: isUnpaid ? '0h' : '8h 00p',
-                workCredit: isUnpaid ? 0.0 : 1.0,
+                workHours: hours,
+                workTimeText: timeText,
+                workCredit: credit,
                 missingMinutes: 0,
-                note: noteText,
+                note: `${noteText}${shiftNote} (Đã duyệt - Ký hiệu: P)`,
+              },
+            },
+            { upsert: true },
+          );
+        }
+      }
+
+      // 3. TỰ ĐỘNG ĐỒNG BỘ SANG BẢNG CHẤM CÔNG NẾU LÀ ĐỢT CÔNG TÁC (KÝ HIỆU CT)
+      if ((item.type === ApprovalType.TRIP || item.type === 'trip') && item.dates && item.dates.length > 0) {
+        for (let i = 0; i < item.dates.length; i++) {
+          const dateStr = item.dates[i];
+          let credit = 1.0;
+          if (item.dates.length === 1) {
+            credit = item.daysCount || 1.0;
+          } else {
+            if (i === 0 && item.startSession === 'afternoon') credit = 0.5;
+            else if (i === item.dates.length - 1 && item.endSession === 'morning') credit = 0.5;
+            else credit = 1.0;
+          }
+
+          const hours = credit * 8.0;
+          const timeText = credit === 0.5 ? '4h 00p' : '8h 00p';
+          const shiftNote = credit === 0.5 ? ' (Nửa ngày)' : '';
+
+          await this.dailyModel.updateOne(
+            { userId: item.requesterCode, date: dateStr },
+            {
+              $set: {
+                userId: item.requesterCode,
+                name: item.requesterName,
+                department: item.department,
+                date: dateStr,
+                firstIn: (i === 0 && item.startSession === 'afternoon') ? '13:30' : '08:00',
+                lastOut: (i === item.dates.length - 1 && item.endSession === 'morning') ? '12:00' : '17:30',
+                punchCount: 2,
+                status: DailyStatus.CONG_TAC,
+                workHours: hours,
+                workTimeText: timeText,
+                workCredit: credit,
+                missingMinutes: 0,
+                note: `Đi công tác tại ${item.destination || item.title}${shiftNote} (Ký hiệu: CT)`,
               },
             },
             { upsert: true },

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { SEED_EMPLOYEES, COMPANY_DEPARTMENTS, Employee } from "@/app/data/seed-employees";
 import { getUserDisplayName, getUserPosition } from "@/app/utils/user";
+import { fetchBackendPermissions, fetchBackendSystemAdmins } from "@/app/utils/permissions";
 
 interface AppContextType {
   currentUser: any;
@@ -22,6 +23,10 @@ interface AppContextType {
   handleUpdateEmployee: (id: string, updatedData: any) => Promise<void>;
   handleDeleteEmployee: (id: string) => Promise<void>;
   handleDownloadTemplate: () => void;
+  // Department CRUD
+  handleCreateDepartment: (data: any) => Promise<void>;
+  handleUpdateDepartment: (id: string, data: any) => Promise<void>;
+  handleDeleteDepartment: (id: string) => Promise<void>;
   // Sidebar collapse state
   isSidebarCollapsed: boolean;
   setIsSidebarCollapsed: (collapsed: boolean) => void;
@@ -109,6 +114,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const loadData = async () => {
     setIsDataLoading(true);
     try {
+      // Tải ma trận phân quyền và danh sách quản trị viên hệ thống từ MongoDB
+      await Promise.allSettled([
+        fetchBackendPermissions(),
+        fetchBackendSystemAdmins(),
+      ]);
+
       const compRes = await fetch("http://localhost:5002/api/company");
       if (compRes.ok) {
         setCompany(await compRes.json());
@@ -314,6 +325,59 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Department CRUD
+  const handleCreateDepartment = async (deptData: any) => {
+    try {
+      const res = await fetch("http://localhost:5002/api/departments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(deptData),
+      });
+      if (res.ok) {
+        showToast("Đã tạo mới phòng ban thành công!");
+        await loadData();
+      } else {
+        alert("Có lỗi xảy ra khi tạo phòng ban!");
+      }
+    } catch {
+      alert("Không kết nối được backend!");
+    }
+  };
+
+  const handleUpdateDepartment = async (id: string, deptData: any) => {
+    try {
+      const res = await fetch(`http://localhost:5002/api/departments/${encodeURIComponent(id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(deptData),
+      });
+      if (res.ok) {
+        showToast("Đã cập nhật thông tin phòng ban!");
+        await loadData();
+      } else {
+        alert("Có lỗi xảy ra khi cập nhật!");
+      }
+    } catch {
+      alert("Không kết nối được backend!");
+    }
+  };
+
+  const handleDeleteDepartment = async (id: string) => {
+    try {
+      const res = await fetch(`http://localhost:5002/api/departments/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        showToast("Đã xóa phòng ban!");
+        await loadData();
+      } else {
+        alert("Có lỗi xảy ra khi xóa!");
+      }
+    } catch {
+      alert("Không kết nối được backend!");
+    }
+  };
+
   // Hoàn tất Wizard khởi tạo công ty
   const handleWizardComplete = (setupData: {
     company: any;
@@ -368,6 +432,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         handleUpdateEmployee,
         handleDeleteEmployee,
         handleDownloadTemplate,
+        handleCreateDepartment,
+        handleUpdateDepartment,
+        handleDeleteDepartment,
         isSidebarCollapsed,
         setIsSidebarCollapsed,
         toggleSidebar,

@@ -14,13 +14,11 @@ import {
 
 interface LoginScreenProps {
   onLoginSuccess: (user: any) => void;
-  onStartWizard?: () => void;
   onGoToJoin?: () => void;
 }
 
 export default function LoginScreen({
   onLoginSuccess,
-  onStartWizard,
   onGoToJoin,
 }: LoginScreenProps) {
   const [step, setStep] = useState<"input" | "verify">("input");
@@ -410,19 +408,6 @@ export default function LoginScreen({
           </form>
         )}
 
-        {/* NÚT TẠO CÔNG TY MỚI DÀNH CHO ADMIN */}
-        {onStartWizard && (
-          <div className="pt-4 border-t border-slate-100 text-center">
-            <button
-              type="button"
-              onClick={onStartWizard}
-              className="text-xs sm:text-sm font-bold text-[#1b365d] hover:underline flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4 text-[#1b365d]" />
-              <span>Bạn là Quản trị viên muốn Khởi tạo Công ty mới? Bấm vào đây</span>
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Overlay loading khi đang xác thực Google */}

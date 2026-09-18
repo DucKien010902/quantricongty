@@ -37,8 +37,17 @@ export const CreateApprovalModal: React.FC<CreateApprovalModalProps> = ({
   onSubmit,
 }) => {
   const [newType, setNewType] = useState<"leave" | "trip" | "document">(defaultType);
+
+  useEffect(() => {
+    if (isOpen) {
+      setNewType(defaultType);
+    }
+  }, [isOpen, defaultType]);
+
   const [newLeaveType, setNewLeaveType] = useState<"annual" | "personal" | "sick" | "unpaid">("annual");
-  const [newTitle, setNewTitle] = useState("");
+  const [newStartSession, setNewStartSession] = useState<"morning" | "afternoon">("morning");
+  const [newEndSession, setNewEndSession] = useState<"morning" | "afternoon">("afternoon");
+  const [newTransportation, setNewTransportation] = useState<string>("Tự túc");
   const [newStartDate, setNewStartDate] = useState("");
   const [newEndDate, setNewEndDate] = useState("");
   const [newReason, setNewReason] = useState("");
@@ -48,14 +57,47 @@ export const CreateApprovalModal: React.FC<CreateApprovalModalProps> = ({
 
   // Working dates calculation (skipping Saturday and Sunday)
   const calculatedWorkingDays = useMemo(() => {
-    if (!newStartDate) return { count: 0, dates: [] };
+    if (!newStartDate) return { count: 0, dates: [], description: "" };
+
     const start = new Date(newStartDate);
-    const end = newEndDate ? new Date(newEndDate) : new Date(newStartDate);
+    const endStr = newEndDate || newStartDate;
+    const end = new Date(endStr);
 
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
-      return { count: 0, dates: [] };
+      return { count: 0, dates: [], description: "Ngày chọn không hợp lệ" };
     }
 
+    // Cùng 1 ngày
+    if (newStartDate === endStr) {
+      const dayOfWeek = start.getDay();
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        return { count: 0, dates: [], description: "Ngày nghỉ Cuối tuần (T7/CN)" };
+      }
+      if (newStartSession === "afternoon" && newEndSession === "morning") {
+        return { count: 0, dates: [], description: "Buổi kết thúc (Sáng) không thể trước Buổi bắt đầu (Chiều)" };
+      }
+
+      let count = 1.0;
+      let sessionText = "Cả ngày";
+      if (newStartSession === "morning" && newEndSession === "morning") {
+        count = 0.5;
+        sessionText = "Ca sáng (08:00 - 12:00)";
+      } else if (newStartSession === "afternoon" && newEndSession === "afternoon") {
+        count = 0.5;
+        sessionText = "Ca chiều (13:30 - 17:30)";
+      } else if (newStartSession === "morning" && newEndSession === "afternoon") {
+        count = 1.0;
+        sessionText = "Cả ngày (08:00 - 17:30)";
+      }
+
+      return {
+        count,
+        dates: [newStartDate],
+        description: `1 ngày làm việc (${sessionText})`,
+      };
+    }
+
+    // Nhiều ngày
     const dates: string[] = [];
     const cur = new Date(start);
     while (cur <= end) {
@@ -69,8 +111,35 @@ export const CreateApprovalModal: React.FC<CreateApprovalModalProps> = ({
       cur.setDate(cur.getDate() + 1);
     }
 
-    return { count: dates.length, dates };
-  }, [newStartDate, newEndDate]);
+    if (dates.length === 0) {
+      return { count: 0, dates: [], description: "Khoảng thời gian chọn trùng vào ngày nghỉ Cuối tuần" };
+    }
+
+    let totalCount = 0;
+    if (dates.length === 1) {
+      if (newStartSession === "afternoon" && newEndSession === "morning") {
+        totalCount = 0;
+      } else if (newStartSession === newEndSession) {
+        totalCount = 0.5;
+      } else {
+        totalCount = 1.0;
+      }
+    } else {
+      totalCount += newStartSession === "afternoon" ? 0.5 : 1.0;
+      totalCount += (dates.length - 2) * 1.0;
+      totalCount += newEndSession === "morning" ? 0.5 : 1.0;
+    }
+
+    const startText = newStartSession === "morning" ? "Sáng" : "Chiều";
+    const endText = newEndSession === "morning" ? "Sáng" : "Chiều";
+    const descText = `Từ ${startText} (${newStartDate}) đến ${endText} (${endStr})`;
+
+    return {
+      count: totalCount,
+      dates,
+      description: descText,
+    };
+  }, [newStartDate, newEndDate, newStartSession, newEndSession]);
 
   // Thông báo luồng phê duyệt theo đúng chức danh
   const workflowNotice = useMemo(() => {
@@ -134,31 +203,38 @@ export const CreateApprovalModal: React.FC<CreateApprovalModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim() || !newReason.trim()) {
-      alert("Vui lòng nhập đầy đủ tiêu đề và nội dung giải thích chi tiết!");
+    if (!newReason.trim()) {
+      alert("Vui lòng nhập nội dung giải thích chi tiết!");
       return;
     }
 
-    if (newType === "leave") {
-      if (!newStartDate) {
-        alert("Vui lòng chọn ngày bắt đầu nghỉ!");
-        return;
-      }
-      if (calculatedWorkingDays.count <= 0) {
-        alert("Khoảng thời gian chọn không có ngày làm việc hợp lệ (trùng thứ Bảy / Chủ Nhật)!");
-        return;
-      }
-      if (newLeaveType === "annual" && calculatedWorkingDays.count > leaveStats.remaining) {
-        const proceed = confirm(
-          `CẢNH BÁO: Bạn chỉ còn ${leaveStats.remaining} ngày phép năm, nhưng xin nghỉ ${calculatedWorkingDays.count} ngày làm việc. Bạn vẫn muốn tiếp tục gửi đơn đề xuất?`
-        );
-        if (!proceed) return;
-      }
+    if (!newStartDate) {
+      alert("Vui lòng chọn ngày bắt đầu!");
+      return;
     }
+
+    if (calculatedWorkingDays.count <= 0) {
+      alert("Khoảng thời gian chọn không có ngày làm việc hợp lệ (trùng thứ Bảy / Chủ Nhật)!");
+      return;
+    }
+
+    if (newType === "leave" && newLeaveType === "annual" && calculatedWorkingDays.count > leaveStats.remaining) {
+      const proceed = confirm(
+        `CẢNH BÁO: Bạn chỉ còn ${leaveStats.remaining} ngày phép năm, nhưng xin nghỉ ${calculatedWorkingDays.count} ngày làm việc. Bạn vẫn muốn tiếp tục gửi đơn đề xuất?`
+      );
+      if (!proceed) return;
+    }
+
+    const autoTitle =
+      newType === "leave"
+        ? `Đơn xin nghỉ: ${newReason.trim().slice(0, 50)}`
+        : newType === "trip"
+        ? `Đề xuất công tác: ${newReason.trim().slice(0, 50)}`
+        : newReason.trim().slice(0, 60);
 
     const payload: any = {
       type: newType,
-      title: newTitle.trim(),
+      title: autoTitle,
       requesterCode: currentUser?.code || currentEmployee?.code || "ĐH0015",
       requesterName: currentUser?.name || currentEmployee?.name || "Nhân sự",
       department: currentUser?.department || currentEmployee?.department || "Ban Công nghệ Thông tin & Chuyển đổi số",
@@ -169,15 +245,26 @@ export const CreateApprovalModal: React.FC<CreateApprovalModalProps> = ({
 
     if (newType === "leave") {
       payload.leaveType = newLeaveType;
+      payload.leaveShift = newStartSession === "morning" && newEndSession === "afternoon" ? "full" : newStartSession;
+      payload.leaveShiftLabel = `${newStartSession === "morning" ? "Sáng" : "Chiều"} ${newStartDate} → ${newEndSession === "morning" ? "Sáng" : "Chiều"} ${newEndDate || newStartDate}`;
       payload.startDate = newStartDate;
       payload.endDate = newEndDate || newStartDate;
+      payload.startSession = newStartSession;
+      payload.endSession = newEndSession;
       payload.daysCount = calculatedWorkingDays.count;
       payload.dates = calculatedWorkingDays.dates;
       payload.handoverTo = newHandover || "Chưa chọn người nhận bàn giao";
     } else if (newType === "trip") {
+      payload.leaveShift = newStartSession === "morning" && newEndSession === "afternoon" ? "full" : newStartSession;
+      payload.leaveShiftLabel = `${newStartSession === "morning" ? "Sáng" : "Chiều"} ${newStartDate} → ${newEndSession === "morning" ? "Sáng" : "Chiều"} ${newEndDate || newStartDate}`;
       payload.startDate = newStartDate;
       payload.endDate = newEndDate || newStartDate;
+      payload.startSession = newStartSession;
+      payload.endSession = newEndSession;
+      payload.daysCount = calculatedWorkingDays.count;
+      payload.dates = calculatedWorkingDays.dates;
       payload.amount = newAmount ? `${newAmount.replace(/[^0-9]/g, "")} đ` : undefined;
+      payload.transportation = newTransportation;
     }
 
     await onSubmit(payload);
@@ -193,20 +280,27 @@ export const CreateApprovalModal: React.FC<CreateApprovalModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 to-[#1b365d] text-white shrink-0">
-          <div className="flex items-center gap-2">
-            <Plus className="w-5 h-5 text-blue-300" />
-            <div>
-              <h3 className="text-base font-bold">Khởi Tạo Đề Xuất Phê Duyệt Mới</h3>
-              <p className="text-xs text-blue-200/80">
-                Quy trình phê duyệt 2 cấp (Trưởng ban → Trưởng ban HCNS)
-              </p>
-            </div>
+        <div className="p-4 px-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 to-[#1b365d] text-white shrink-0">
+          <div className="flex items-center gap-2.5">
+            {newType === "leave" ? (
+              <Palmtree className="w-5 h-5 text-emerald-400" />
+            ) : newType === "trip" ? (
+              <Briefcase className="w-5 h-5 text-blue-300" />
+            ) : (
+              <FileText className="w-5 h-5 text-blue-300" />
+            )}
+            <h3 className="text-base font-bold tracking-tight">
+              {newType === "leave"
+                ? "Tạo Đơn Xin Nghỉ Phép"
+                : newType === "trip"
+                ? "Đăng Ký Đợt Công Tác Mới"
+                : "Tạo Đề Xuất Phê Duyệt Mới"}
+            </h3>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white transition-colors"
+            className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -214,49 +308,10 @@ export const CreateApprovalModal: React.FC<CreateApprovalModalProps> = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4 text-xs">
-          {/* Workflow notification */}
-          {workflowNotice && (
-            <div className={`p-3 rounded-xl border flex items-start gap-2 ${workflowNotice.color}`}>
-              <span className="w-2 h-2 rounded-full bg-current mt-1.5 shrink-0" />
-              <div>
-                <p className="font-bold text-xs">{workflowNotice.badge}</p>
-                <p className="text-[11px] opacity-90 mt-0.5">{workflowNotice.text}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Type Select */}
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Loại đề xuất *</label>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { id: "leave", label: "Đơn nghỉ phép", icon: Palmtree },
-                { id: "trip", label: "Đề xuất công tác", icon: Briefcase },
-                { id: "document", label: "Up tài liệu", icon: FileText },
-              ].map((t) => {
-                const Icon = t.icon;
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setNewType(t.id as any)}
-                    className={`p-2.5 rounded-xl border flex items-center justify-center gap-2 font-bold text-xs transition-all ${
-                      newType === t.id
-                        ? "bg-[#1b365d] text-white border-[#1b365d] shadow-2xs"
-                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span>{t.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
           {/* Sub-type for Leave */}
           {newType === "leave" && (
-            <div className="p-3.5 rounded-xl bg-blue-50/60 border border-blue-200/80 space-y-2">
+            <div className="p-3.5 rounded-xl bg-blue-50/60 border border-blue-200/80 space-y-3">
               <div className="flex items-center justify-between">
                 <label className="block font-bold text-slate-700">Loại hình nghỉ phép *</label>
                 <span className="text-[11px] font-mono font-bold text-blue-900 bg-white px-2 py-0.5 rounded border border-blue-200">
@@ -295,66 +350,106 @@ export const CreateApprovalModal: React.FC<CreateApprovalModalProps> = ({
             </div>
           )}
 
-          {/* Title */}
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Tiêu đề đề xuất *</label>
-            <input
-              type="text"
-              required
-              placeholder={
-                newType === "leave"
-                  ? "VD: Đơn xin nghỉ phép năm giải quyết việc gia đình..."
-                  : newType === "trip"
-                  ? "VD: Đề xuất công tác kiểm định hệ thống Cảng Hải Phòng..."
-                  : "VD: Phê duyệt quy chế chi tiêu nội bộ năm 2026..."
-              }
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20"
-            />
+          {/* Pick Ngày & Buổi (Từ ngày Sáng/Chiều → Đến ngày Sáng/Chiều) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Từ ngày & Buổi bắt đầu */}
+            <div className="space-y-1.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <label className="block font-bold text-slate-700 text-xs">Từ ngày & Buổi bắt đầu *</label>
+              <div className="space-y-2">
+                <input
+                  type="date"
+                  required
+                  value={newStartDate}
+                  onChange={(e) => {
+                    setNewStartDate(e.target.value);
+                    if (!newEndDate) setNewEndDate(e.target.value);
+                  }}
+                  className="w-full p-2 rounded-lg border border-slate-200 bg-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20"
+                />
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setNewStartSession("morning")}
+                    className={`py-1.5 px-2 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
+                      newStartSession === "morning"
+                        ? "bg-[#1b365d] text-white border-[#1b365d] shadow-2xs"
+                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    ☀️ Buổi Sáng
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewStartSession("afternoon")}
+                    className={`py-1.5 px-2 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
+                      newStartSession === "afternoon"
+                        ? "bg-[#1b365d] text-white border-[#1b365d] shadow-2xs"
+                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    ⛅ Buổi Chiều
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Đến ngày & Buổi kết thúc */}
+            <div className="space-y-1.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <label className="block font-bold text-slate-700 text-xs">Đến ngày & Buổi kết thúc *</label>
+              <div className="space-y-2">
+                <input
+                  type="date"
+                  required
+                  min={newStartDate}
+                  value={newEndDate || newStartDate}
+                  onChange={(e) => setNewEndDate(e.target.value)}
+                  className="w-full p-2 rounded-lg border border-slate-200 bg-white font-mono text-xs focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20"
+                />
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setNewEndSession("morning")}
+                    className={`py-1.5 px-2 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
+                      newEndSession === "morning"
+                        ? "bg-[#1b365d] text-white border-[#1b365d] shadow-2xs"
+                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    ☀️ Buổi Sáng
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewEndSession("afternoon")}
+                    className={`py-1.5 px-2 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
+                      newEndSession === "afternoon"
+                        ? "bg-[#1b365d] text-white border-[#1b365d] shadow-2xs"
+                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    ⛅ Buổi Chiều
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Date pickers & Working days counter */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Từ ngày *</label>
-              <input
-                type="date"
-                required
-                value={newStartDate}
-                onChange={(e) => setNewStartDate(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 font-mono"
-              />
-            </div>
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Đến ngày</label>
-              <input
-                type="date"
-                value={newEndDate}
-                onChange={(e) => setNewEndDate(e.target.value)}
-                min={newStartDate}
-                className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20 font-mono"
-              />
-            </div>
-          </div>
-
-          {/* Working days preview */}
-          {newType === "leave" && newStartDate && (
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+          {/* Working days counter card (Nổi bật trên CẢ 2 Modal) */}
+          {newStartDate && (
+            <div className="p-3.5 rounded-xl bg-blue-50/80 border border-blue-200/90 flex items-center justify-between">
               <div>
-                <p className="font-bold text-slate-800 text-[11.5px]">
-                  Tổng số ngày làm việc xin nghỉ:{" "}
-                  <span className="text-[#1b365d] font-mono text-sm font-black">
+                <p className="font-bold text-slate-800 text-xs">
+                  Tổng số ngày đề xuất:{" "}
+                  <span className="text-[#1b365d] font-mono text-base font-black ml-1">
                     {calculatedWorkingDays.count} ngày
                   </span>
                 </p>
-                <p className="text-[10.5px] text-slate-400">
-                  (Hệ thống tự động bỏ qua các ngày Thứ Bảy và Chủ Nhật)
+                <p className="text-[11px] text-blue-900/80 mt-0.5 font-medium">
+                  {calculatedWorkingDays.description} (Tự động bỏ qua Thứ 7 & Chủ Nhật)
                 </p>
               </div>
 
-              {newLeaveType === "annual" && calculatedWorkingDays.count > leaveStats.remaining && (
-                <div className="flex items-center gap-1 text-[11px] font-bold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200">
+              {newType === "leave" && newLeaveType === "annual" && calculatedWorkingDays.count > leaveStats.remaining && (
+                <div className="flex items-center gap-1 text-[11px] font-bold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 shrink-0">
                   <AlertCircle className="w-3.5 h-3.5" />
                   <span>Vượt quá {calculatedWorkingDays.count - leaveStats.remaining} ngày phép!</span>
                 </div>
@@ -381,17 +476,33 @@ export const CreateApprovalModal: React.FC<CreateApprovalModalProps> = ({
             </div>
           )}
 
-          {/* Trip amount */}
+          {/* Trip amount & transportation */}
           {newType === "trip" && (
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Dự toán kinh phí công tác (VNĐ)</label>
-              <input
-                type="text"
-                placeholder="VD: 5.000.000"
-                value={newAmount}
-                onChange={(e) => setNewAmount(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-200 font-mono focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Dự toán kinh phí công tác (VNĐ)</label>
+                <input
+                  type="text"
+                  placeholder="VD: 5.000.000"
+                  value={newAmount}
+                  onChange={(e) => setNewAmount(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 font-mono focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Phương tiện di chuyển</label>
+                <select
+                  value={newTransportation}
+                  onChange={(e) => setNewTransportation(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#1b365d]/20"
+                >
+                  <option value="Tự túc">Tự túc phương tiện (Mặc định)</option>
+                  <option value="Xe công ty">Xe công ty sắp xếp</option>
+                  <option value="Máy bay">Máy bay (Khứ hồi)</option>
+                  <option value="Tàu hỏa">Tàu hỏa</option>
+                </select>
+              </div>
             </div>
           )}
 

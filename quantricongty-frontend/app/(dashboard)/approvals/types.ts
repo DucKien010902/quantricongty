@@ -22,6 +22,8 @@ export interface ApprovalItem {
 
   // Leave specific fields
   leaveType?: "annual" | "personal" | "sick" | "unpaid";
+  leaveShift?: "full" | "morning" | "afternoon";
+  leaveShiftLabel?: string;
   startDate?: string;
   endDate?: string;
   daysCount?: number;
