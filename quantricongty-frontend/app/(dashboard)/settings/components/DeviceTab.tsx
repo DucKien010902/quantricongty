@@ -1,6 +1,7 @@
 "use client";
+import { API_URL } from "@/app/config/api";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Cpu,
   Wifi,
@@ -15,19 +16,31 @@ interface DeviceTabProps {
 }
 
 export default function DeviceTab({ showToast }: DeviceTabProps) {
-  const [deviceIp, setDeviceIp] = useState("192.168.1.201");
-  const [devicePort, setDevicePort] = useState(4370);
-  const [deviceCommKey, setDeviceCommKey] = useState(123456);
+  const [deviceIp, setDeviceIp] = useState(process.env.NEXT_PUBLIC_DEVICE_IP || "222.252.30.194");
+  const [devicePort, setDevicePort] = useState(Number(process.env.NEXT_PUBLIC_DEVICE_PORT) || 4370);
+  const [deviceCommKey, setDeviceCommKey] = useState(Number(process.env.NEXT_PUBLIC_DEVICE_COMM_KEY) || 0);
   const [pingStatus, setPingStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [pingMessage, setPingMessage] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // Load device configuration from backend if available
+  useEffect(() => {
+    fetch(`${API_URL}/attendance/device/config`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((cfg) => {
+        if (cfg && cfg.ip) setDeviceIp(cfg.ip);
+        if (cfg && cfg.port) setDevicePort(Number(cfg.port));
+        if (cfg && cfg.commKey !== undefined) setDeviceCommKey(Number(cfg.commKey));
+      })
+      .catch(() => { });
+  }, []);
+
   // Test connection to Attendance Machine
   const handleTestConnection = async () => {
     setPingStatus("testing");
-    setPingMessage("Đang kiểm tra kết nối TCP 4370 tới thiết bị...");
+    setPingMessage(`Đang kiểm tra kết nối TCP tới thiết bị (${deviceIp}:${devicePort})...`);
     try {
-      const res = await fetch("http://localhost:5002/api/attendance/device/test-connection", {
+      const res = await fetch(`${API_URL}/attendance/device/test-connection`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ip: deviceIp, port: Number(devicePort), commKey: Number(deviceCommKey) }),
@@ -52,7 +65,7 @@ export default function DeviceTab({ showToast }: DeviceTabProps) {
     setPingStatus("idle");
     setPingMessage("");
     try {
-      const res = await fetch("http://localhost:5002/api/attendance/device/sync", {
+      const res = await fetch(`${API_URL}/attendance/device/sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ip: deviceIp, port: Number(devicePort), commKey: Number(deviceCommKey) }),
@@ -79,7 +92,7 @@ export default function DeviceTab({ showToast }: DeviceTabProps) {
         </h2>
         <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          TCP Port 4370
+          TCP Socket
         </span>
       </div>
 
@@ -87,13 +100,13 @@ export default function DeviceTab({ showToast }: DeviceTabProps) {
         <div>
           <label className="block text-xs font-medium text-slate-700 mb-1 flex items-center gap-1">
             <Wifi className="w-3.5 h-3.5 text-slate-400" />
-            Địa chỉ IP
+            Địa chỉ IP (WAN / LAN)
           </label>
           <input
             type="text"
             value={deviceIp}
             onChange={(e) => setDeviceIp(e.target.value)}
-            placeholder="192.168.1.201"
+            placeholder="222.252.30.194"
             className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#1b365d] font-mono text-slate-800 font-semibold"
           />
         </div>
@@ -129,13 +142,12 @@ export default function DeviceTab({ showToast }: DeviceTabProps) {
       {/* Feedback message */}
       {pingStatus !== "idle" && (
         <div
-          className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
-            pingStatus === "testing"
+          className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${pingStatus === "testing"
               ? "bg-blue-50/70 border-blue-200 text-blue-800"
               : pingStatus === "success"
-              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-              : "bg-rose-50 border-rose-200 text-rose-800"
-          }`}
+                ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                : "bg-rose-50 border-rose-200 text-rose-800"
+            }`}
         >
           {pingStatus === "testing" && <RefreshCw className="w-3.5 h-3.5 animate-spin shrink-0 text-blue-600" />}
           {pingStatus === "success" && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}

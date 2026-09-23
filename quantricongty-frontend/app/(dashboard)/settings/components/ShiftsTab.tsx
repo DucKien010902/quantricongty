@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from "@/app/config/api";
 
 import React, { useState, useEffect } from "react";
 import {
@@ -48,7 +49,7 @@ export default function ShiftsTab({ showToast }: ShiftsTabProps) {
   // Fetch shifts config from backend
   const fetchAttendanceConfig = async () => {
     try {
-      const res = await fetch("http://localhost:5002/api/attendance/config");
+      const res = await fetch(`${API_URL}/attendance/config`);
       if (res.ok) {
         const data = await res.json();
         if (data.shiftTimeIn) setShiftStart(data.shiftTimeIn);
@@ -77,7 +78,7 @@ export default function ShiftsTab({ showToast }: ShiftsTabProps) {
   // Fetch holidays from backend
   const fetchHolidays = async () => {
     try {
-      const res = await fetch("http://localhost:5002/api/attendance/holidays");
+      const res = await fetch(`${API_URL}/attendance/holidays`);
       if (res.ok) {
         const data = await res.json();
         setHolidays(Array.isArray(data) ? data : []);
@@ -105,7 +106,7 @@ export default function ShiftsTab({ showToast }: ShiftsTabProps) {
   const handleSaveShifts = async () => {
     setIsSavingShift(true);
     try {
-      const res = await fetch("http://localhost:5002/api/attendance/config", {
+      const res = await fetch(`${API_URL}/attendance/config`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -143,7 +144,7 @@ export default function ShiftsTab({ showToast }: ShiftsTabProps) {
     }
     setIsAddingHoliday(true);
     try {
-      const res = await fetch("http://localhost:5002/api/attendance/holidays", {
+      const res = await fetch(`${API_URL}/attendance/holidays`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -172,7 +173,7 @@ export default function ShiftsTab({ showToast }: ShiftsTabProps) {
   const handleDeleteHoliday = async (id: string, name: string) => {
     if (!confirm(`Bạn có chắc chắn muốn xóa ngày nghỉ "${name}" khỏi danh mục?`)) return;
     try {
-      const res = await fetch(`http://localhost:5002/api/attendance/holidays/${id}`, {
+      const res = await fetch(`${API_URL}/attendance/holidays/${id}`, {
         method: "DELETE",
       });
       if (res.ok) {

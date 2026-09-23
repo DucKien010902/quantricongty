@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { API_URL } from "@/app/config/api";
 import Image from "next/image";
 import {
   Mail,
@@ -120,7 +121,7 @@ export default function LoginScreen({
     setSuccessMsg(null);
 
     try {
-      const res = await fetch("http://localhost:5002/api/auth/google-whitelist", {
+      const res = await fetch(`${API_URL}/auth/google-whitelist`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -152,7 +153,7 @@ export default function LoginScreen({
     setSuccessMsg(null);
 
     try {
-      const res = await fetch("http://localhost:5002/api/auth/send-otp", {
+      const res = await fetch(`${API_URL}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
@@ -195,7 +196,7 @@ export default function LoginScreen({
     setErrorMsg(null);
 
     try {
-      const res = await fetch("http://localhost:5002/api/auth/verify-otp", {
+      const res = await fetch(`${API_URL}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

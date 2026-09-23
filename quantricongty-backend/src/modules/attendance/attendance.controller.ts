@@ -62,8 +62,8 @@ export class AttendanceController {
   }
 
   @Post('device/test-connection')
-  async testConnection(@Body() body: { ip: string; port: number; commKey?: number }) {
-    return this.attendanceService.testConnection(body.ip, body.port || 4370, body.commKey);
+  async testConnection(@Body() body: { ip?: string; port?: number; commKey?: number }) {
+    return this.attendanceService.testConnection(body.ip, body.port, body.commKey);
   }
 
   @Get('device/config')

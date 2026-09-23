@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from "@/app/config/api";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
@@ -102,7 +103,7 @@ export default function LeavePage() {
   const fetchLeaves = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:5002/api/approvals?type=leave");
+      const res = await fetch(`${API_URL}/approvals?type=leave`);
       if (res.ok) {
         const data = await res.json();
         setLeaves(data);
@@ -149,7 +150,7 @@ export default function LeavePage() {
   const handleCreateLeave = async (payload: any) => {
     setActionLoading(true);
     try {
-      const res = await fetch("http://localhost:5002/api/approvals", {
+      const res = await fetch(`${API_URL}/approvals`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -208,7 +209,7 @@ export default function LeavePage() {
     if (!id) return;
     setActionLoading(true);
     try {
-      const res = await fetch(`http://localhost:5002/api/approvals/${id}/cancel`, {
+      const res = await fetch(`${API_URL}/approvals/${id}/cancel`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

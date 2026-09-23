@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { API_URL } from "@/app/config/api";
 import {
   Home,
   UserCircle,
@@ -78,7 +79,7 @@ export default function Sidebar() {
 
     const fetchPending = async () => {
       try {
-        const res = await fetch("http://localhost:5002/api/approvals");
+        const res = await fetch(`${API_URL}/approvals`);
         if (!res.ok) return;
         const approvals = await res.json();
         if (!Array.isArray(approvals) || !isMounted) return;
@@ -149,6 +150,7 @@ export default function Sidebar() {
   const canViewDashboard = can("dashboard.view");
   const canViewEmployees = can("employees.view");
   const canViewLeaveManagement = can("leave_management.view");
+  const canViewContracts = can("contracts.view");
 
   const navGroups = [
     {
@@ -165,7 +167,9 @@ export default function Sidebar() {
         ...(canViewEmployees ? [{ href: "/employees", label: "Quản lý nhân viên", icon: Users }] : []),
         { href: "/departments", label: "Ban / Phòng", icon: Building2 },
         { href: "/documents", label: "Quản lý tài liệu", icon: FileText },
-        { href: "/contracts", label: "Công cụ tạo hợp đồng", icon: FileSignature },
+        ...(canViewContracts
+          ? [{ href: "/contracts", label: "Công cụ tạo hợp đồng", icon: FileSignature }]
+          : []),
         ...(canViewLeaveManagement
           ? [{ href: "/leave-management", label: "Quản lý phép nhân viên", icon: CalendarCheck }]
           : []),

@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from "@/app/config/api";
 
 import React, { useState, useRef } from "react";
 import {
@@ -66,7 +67,7 @@ export default function ExcelImportModal({
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("http://localhost:5002/api/employees/import-excel", {
+      const res = await fetch(`${API_URL}/employees/import-excel`, {
         method: "POST",
         body: formData,
       });

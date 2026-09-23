@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from "@/app/config/api";
 
 import React, { useState } from "react";
 import Image from "next/image";
@@ -211,7 +212,7 @@ export default function CompanySetupWizard({
       };
 
       // Gửi lên Backend API
-      await fetch("http://localhost:5002/api/company/init-wizard", {
+      await fetch(`${API_URL}/company/init-wizard`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

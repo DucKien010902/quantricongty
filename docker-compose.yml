@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./quantricongty-backend
+      dockerfile: Dockerfile
+    container_name: quantricongty-backend
+    restart: unless-stopped
+    ports:
+      - "5002:5002"
+    env_file:
+      - ./quantricongty-backend/.env
+    environment:
+      - PORT=5002
+      - NODE_ENV=production
+    # networks:
+    #   - gennovax-network # Uncomment nếu muốn nối chung network với MinIO container
+
+  frontend:
+    build:
+      context: ./quantricongty-frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://quantri-api.gennovax.vn/api
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: 212556319306-aumbkhalf668rl9km57lp6sjftfdkfpa.apps.googleusercontent.com
+    container_name: quantricongty-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+# networks:
+#   gennovax-network:
+#     external: true

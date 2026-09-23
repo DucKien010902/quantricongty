@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from "@/app/config/api";
 
 import React, { useState } from "react";
 import {
@@ -220,7 +221,7 @@ export default function AddEmployeeModal({
         workEmail: formData.workEmail || formData.email,
       };
 
-      const res = await fetch("http://localhost:5002/api/employees", {
+      const res = await fetch(`${API_URL}/employees`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

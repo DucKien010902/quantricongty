@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { Mail, Lock, User, ArrowRight, ShieldCheck, CheckCircle2, Sparkles, Loader2 } from "lucide-react";
+import { API_URL } from "@/app/config/api";
 
 interface JoinOrgProps {
   companyName?: string;
@@ -46,7 +47,7 @@ export default function JoinOrganizationScreen({
     setErrorMsg(null);
 
     try {
-      const res = await fetch("http://localhost:5002/api/auth/join-by-invite", {
+      const res = await fetch(`${API_URL}/auth/join-by-invite`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

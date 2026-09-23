@@ -461,16 +461,24 @@ export default function RolesTab({
             <tbody className="divide-y divide-slate-100">
               {permissions.map((group, grpIdx) => (
                 <React.Fragment key={group.module || grpIdx}>
-                  <tr className="bg-slate-50/50">
-                    <td colSpan={5} className="py-2 px-4 font-semibold text-slate-700">
+                  <tr className="bg-slate-100/90 border-y border-slate-200">
+                    <td colSpan={5} className="py-2.5 px-4 font-extrabold text-xs text-[#1b365d] bg-slate-100/90 tracking-wide">
                       {group.module}
                     </td>
                   </tr>
 
                   {group.items.map((item, itemIdx) => (
-                    <tr key={item.id || itemIdx} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-2.5 px-4 pl-6 text-slate-700">
-                        <div className="font-medium text-slate-800">{item.label}</div>
+                    <tr key={item.id || itemIdx} className="hover:bg-blue-50/30 transition-colors">
+                      <td className="py-2.5 px-4 pl-8 text-slate-700">
+                        <div className="flex items-center gap-2.5 font-semibold text-slate-800">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0"></span>
+                          <span>{item.label}</span>
+                        </div>
+                        {item.note && (
+                          <p className="text-[11px] text-slate-400 pl-4 mt-0.5 font-normal leading-snug">
+                            {item.note}
+                          </p>
+                        )}
                       </td>
 
                       {/* Admin column */}

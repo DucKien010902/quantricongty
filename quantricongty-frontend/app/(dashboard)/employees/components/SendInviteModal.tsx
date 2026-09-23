@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from "@/app/config/api";
 
 import React, { useState } from "react";
 import { X, Send, Copy, Check, Mail, Building2, ExternalLink, Loader2 } from "lucide-react";
@@ -38,7 +39,7 @@ export default function SendInviteModal({
     setIsSending(true);
     try {
       const empId = (employee as any)._id || employee.id;
-      const res = await fetch(`http://localhost:5002/api/employees/${empId}/send-invite`, {
+      const res = await fetch(`${API_URL}/employees/${empId}/send-invite`, {
         method: "POST",
       });
       const data = await res.json();

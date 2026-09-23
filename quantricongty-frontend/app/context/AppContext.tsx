@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { SEED_EMPLOYEES, COMPANY_DEPARTMENTS, Employee } from "@/app/data/seed-employees";
 import { getUserDisplayName, getUserPosition } from "@/app/utils/user";
 import { fetchBackendPermissions, fetchBackendSystemAdmins } from "@/app/utils/permissions";
+import { API_URL } from "@/app/config/api";
 
 interface AppContextType {
   currentUser: any;
@@ -120,12 +121,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         fetchBackendSystemAdmins(),
       ]);
 
-      const compRes = await fetch("http://localhost:5002/api/company");
+      const compRes = await fetch(`${API_URL}/company`);
       if (compRes.ok) {
         setCompany(await compRes.json());
       }
 
-      const deptRes = await fetch("http://localhost:5002/api/departments");
+      const deptRes = await fetch(`${API_URL}/departments`);
       if (deptRes.ok) {
         const deptData = await deptRes.json();
         if (Array.isArray(deptData) && deptData.length > 0) {
@@ -137,7 +138,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setDepartments(COMPANY_DEPARTMENTS);
       }
 
-      const empRes = await fetch("http://localhost:5002/api/employees");
+      const empRes = await fetch(`${API_URL}/employees`);
       if (empRes.ok) {
         const empData = await empRes.json();
         if (Array.isArray(empData) && empData.length > 0) {
@@ -246,7 +247,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Đồng bộ vào backend MongoDB nếu có
     try {
       if (merged.id || merged._id) {
-        await fetch(`http://localhost:5002/api/employees/${merged.id || merged._id}`, {
+        await fetch(`${API_URL}/employees/${merged.id || merged._id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(merged),
@@ -295,7 +296,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ) || currentUser;
       const operatorRole = (operatorEmployee?.role || currentUser?.role || "").toUpperCase();
 
-      await fetch(`http://localhost:5002/api/employees/${id}`, {
+      await fetch(`${API_URL}/employees/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...updatedData, operatorRole }),
@@ -307,13 +308,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const handleDownloadTemplate = () => {
-    window.open("http://localhost:5002/api/employees/export-template", "_blank");
+    window.open(`${API_URL}/employees/export-template`, "_blank");
     showToast("Đang tải file mẫu...");
   };
 
   const handleDeleteEmployee = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:5002/api/employees/${id}`, {
+      const res = await fetch(`${API_URL}/employees/${id}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -328,7 +329,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Department CRUD
   const handleCreateDepartment = async (deptData: any) => {
     try {
-      const res = await fetch("http://localhost:5002/api/departments", {
+      const res = await fetch(`${API_URL}/departments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(deptData),
@@ -346,7 +347,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const handleUpdateDepartment = async (id: string, deptData: any) => {
     try {
-      const res = await fetch(`http://localhost:5002/api/departments/${encodeURIComponent(id)}`, {
+      const res = await fetch(`${API_URL}/departments/${encodeURIComponent(id)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(deptData),
@@ -364,7 +365,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const handleDeleteDepartment = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:5002/api/departments/${encodeURIComponent(id)}`, {
+      const res = await fetch(`${API_URL}/departments/${encodeURIComponent(id)}`, {
         method: "DELETE",
       });
       if (res.ok) {

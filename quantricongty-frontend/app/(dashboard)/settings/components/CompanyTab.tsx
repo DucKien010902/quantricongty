@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from "@/app/config/api";
 
 import React, { useState } from "react";
 import { Building, Save } from "lucide-react";
@@ -21,7 +22,7 @@ export default function CompanyTab({ company, loadData, showToast }: CompanyTabP
   const handleSaveCompany = async () => {
     setIsSaving(true);
     try {
-      const res = await fetch("http://localhost:5002/api/company", {
+      const res = await fetch(`${API_URL}/company`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

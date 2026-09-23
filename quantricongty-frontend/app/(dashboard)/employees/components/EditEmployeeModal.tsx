@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from "@/app/config/api";
 
 import React, { useState } from "react";
 import { X, Edit2, Loader2, Save } from "lucide-react";
@@ -62,7 +63,7 @@ export default function EditEmployeeModal({
 
     try {
       const empId = (employee as any)._id || employee.id;
-      const res = await fetch(`http://localhost:5002/api/employees/${empId}`, {
+      const res = await fetch(`${API_URL}/employees/${empId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

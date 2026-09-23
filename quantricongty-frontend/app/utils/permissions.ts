@@ -1,3 +1,5 @@
+import { API_URL } from "@/app/config/api";
+
 /**
  * HỆ THỐNG PHÂN QUYỀN MA TRẬN DOANH NGHIỆP (ROLE & MODULE PERMISSION MATRIX)
  * 
@@ -173,6 +175,29 @@ export const DEFAULT_PERMISSION_MATRIX: PermissionGroup[] = [
       },
     ],
   },
+  {
+    module: "Hợp đồng & Biểu mẫu",
+    items: [
+      {
+        id: "contracts.view",
+        label: "Xem và truy cập trang Công cụ tạo hợp đồng",
+        note: "Chỉ Quản trị viên (ADMIN) và Phòng HCNS được quyền xem và truy cập",
+        admin: true,
+        hr: true,
+        leader: false,
+        employee: false,
+      },
+      {
+        id: "contracts.manage",
+        label: "Thao tác tạo hợp đồng, tải lên mẫu Word và xóa",
+        note: "Chỉ Quản trị viên (ADMIN) và Phòng HCNS được quyền sinh hợp đồng, thêm mẫu Word hoặc xóa",
+        admin: true,
+        hr: true,
+        leader: false,
+        employee: false,
+      },
+    ],
+  },
 ];
 
 const STORAGE_KEY = "dhi_permission_matrix_v2";
@@ -214,7 +239,7 @@ export function saveStoredPermissionMatrix(matrix: PermissionGroup[]): void {
     window.dispatchEvent(new Event("permission-changed"));
 
     // Sync to backend MongoDB database
-    fetch("http://localhost:5002/api/permissions/matrix", {
+    fetch(`${API_URL}/permissions/matrix`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ matrix }),
@@ -231,7 +256,7 @@ export function saveStoredPermissionMatrix(matrix: PermissionGroup[]): void {
  */
 export async function fetchBackendPermissions(): Promise<PermissionGroup[]> {
   try {
-    const res = await fetch("http://localhost:5002/api/permissions/matrix");
+    const res = await fetch(`${API_URL}/permissions/matrix`);
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
@@ -410,7 +435,7 @@ export function saveStoredSystemAdmins(slots: SystemAdminSlot[]): void {
     window.dispatchEvent(new Event("system-admins-changed"));
 
     // Sync to backend MongoDB database
-    fetch("http://localhost:5002/api/permissions/system-admins", {
+    fetch(`${API_URL}/permissions/system-admins`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ systemAdmins: sanitized }),
@@ -427,7 +452,7 @@ export function saveStoredSystemAdmins(slots: SystemAdminSlot[]): void {
  */
 export async function fetchBackendSystemAdmins(): Promise<SystemAdminSlot[]> {
   try {
-    const res = await fetch("http://localhost:5002/api/permissions/system-admins");
+    const res = await fetch(`${API_URL}/permissions/system-admins`);
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {

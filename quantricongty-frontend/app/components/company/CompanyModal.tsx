@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Image from "next/image";
 import { X, Building, ShieldCheck, Save, Loader2, MapPin, Mail, Phone, Sparkles } from "lucide-react";
 import Modal from "@/app/components/ui/Modal";
+import { API_URL } from "@/app/config/api";
 
 interface CompanyModalProps {
   company: any;
@@ -44,7 +45,7 @@ export default function CompanyModal({
     setSuccessMsg(false);
 
     try {
-      const res = await fetch("http://localhost:5002/api/company/initialize", {
+      const res = await fetch(`${API_URL}/company/initialize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

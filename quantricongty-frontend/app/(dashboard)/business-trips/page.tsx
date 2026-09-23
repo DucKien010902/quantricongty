@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from "@/app/config/api";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
@@ -92,7 +93,7 @@ export default function BusinessTripsPage() {
   const fetchTrips = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:5002/api/approvals?type=trip");
+      const res = await fetch(`${API_URL}/approvals?type=trip`);
       if (res.ok) {
         const data = await res.json();
         setTrips(data);
@@ -263,7 +264,7 @@ export default function BusinessTripsPage() {
         position: currentUser?.position || currentEmployee?.position || "Chuyên viên",
       };
 
-      const res = await fetch("http://localhost:5002/api/approvals", {
+      const res = await fetch(`${API_URL}/approvals`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -300,8 +301,8 @@ export default function BusinessTripsPage() {
   const handleApproveTrip = async (id: string, isApproved: boolean) => {
     try {
       const endpoint = isAdmin
-        ? `http://localhost:5002/api/business-trips/${id}/hr-approve`
-        : `http://localhost:5002/api/business-trips/${id}/leader-approve`;
+        ? `${API_URL}/business-trips/${id}/hr-approve`
+        : `${API_URL}/business-trips/${id}/leader-approve`;
 
       const res = await fetch(endpoint, {
         method: "PUT",

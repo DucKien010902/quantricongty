@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller.js';
@@ -10,6 +10,10 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { AttendanceModule } from './modules/attendance/attendance.module.js';
 import { ApprovalModule } from './modules/approval/approval.module.js';
 import { PermissionModule } from './modules/permission/permission.module.js';
+import { MinioModule } from './modules/minio/minio.module.js';
+import { ContractModule } from './modules/contract/contract.module.js';
+import { DocumentModule } from './modules/document/document.module.js';
+import { LoggerMiddleware } from './common/middleware/logger.middleware.js';
 
 @Module({
   imports: [
@@ -28,8 +32,15 @@ import { PermissionModule } from './modules/permission/permission.module.js';
     AttendanceModule,
     ApprovalModule,
     PermissionModule,
+    MinioModule,
+    ContractModule,
+    DocumentModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes('*');
+  }
+}

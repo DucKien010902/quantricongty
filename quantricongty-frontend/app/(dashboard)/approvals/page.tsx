@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from "@/app/config/api";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { ClipboardCheck, ShieldCheck, ShieldAlert, Clock, Home } from "lucide-react";
@@ -106,7 +107,7 @@ export default function ApprovalsPage() {
   const fetchApprovals = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:5002/api/approvals");
+      const res = await fetch(`${API_URL}/approvals`);
       if (res.ok) {
         const data = await res.json();
         setApprovals(data);
@@ -303,7 +304,7 @@ export default function ApprovalsPage() {
   const executeLeaderApprove = async (id: string, isApproved: boolean, note?: string) => {
     setActionLoading(true);
     try {
-      const res = await fetch(`http://localhost:5002/api/approvals/${id}/leader-approve`, {
+      const res = await fetch(`${API_URL}/approvals/${id}/leader-approve`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -352,7 +353,7 @@ export default function ApprovalsPage() {
   const executeHRApprove = async (id: string, isApproved: boolean, note?: string) => {
     setActionLoading(true);
     try {
-      const res = await fetch(`http://localhost:5002/api/approvals/${id}/hr-approve`, {
+      const res = await fetch(`${API_URL}/approvals/${id}/hr-approve`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -401,7 +402,7 @@ export default function ApprovalsPage() {
   const executeHRApproveCancel = async (id: string, isApproved: boolean, note?: string) => {
     setActionLoading(true);
     try {
-      const res = await fetch(`http://localhost:5002/api/approvals/${id}/hr-approve-cancel`, {
+      const res = await fetch(`${API_URL}/approvals/${id}/hr-approve-cancel`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

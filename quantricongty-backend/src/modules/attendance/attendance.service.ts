@@ -20,7 +20,7 @@ export class AttendanceService {
     @InjectModel(Holiday.name) private holidayModel: Model<HolidayDocument>,
     @InjectModel(AttendanceConfig.name) private configModel: Model<AttendanceConfigDocument>,
     @InjectModel(Employee.name) private employeeModel: Model<EmployeeDocument>,
-  ) {}
+  ) { }
 
   /**
    * Helper: Parse multi-format Date and Time
@@ -414,7 +414,7 @@ export class AttendanceService {
 
     // 2. Fetch all employees
     const employees = await this.employeeModel.find().lean();
-    
+
     // "mỗi user phải có thêm 1 trường là mã chấm công để khi tải từ máy hoặc nhập excel thì còn biết mà map vào ai chứ, ko có thì ko hiển thị"
     const targetEmployees = (employees as any[]).filter(
       (e: any) => e.attendanceCode && String(e.attendanceCode).trim() !== ''
@@ -446,7 +446,7 @@ export class AttendanceService {
         if (
           existingRecord &&
           ((existingRecord as any).status === DailyStatus.NGHI_PHEP ||
-           (existingRecord as any).status === DailyStatus.CONG_TAC) &&
+            (existingRecord as any).status === DailyStatus.CONG_TAC) &&
           userLogs.length === 0
         ) {
           // Giữ nguyên bản ghi nghỉ phép hoặc đi công tác đã được phê duyệt hợp lệ
@@ -627,9 +627,15 @@ export class AttendanceService {
    * Uses node-zklib with try/finally safety pattern
    */
   async syncFromDevice(ip?: string, port?: number, commKey?: number): Promise<{ success: boolean; message: string; recordCount?: number }> {
-    const targetIp = ip || '192.168.1.201';
-    const targetPort = port || 4370;
-    const targetCommKey = commKey !== undefined && commKey !== 0 ? Number(commKey) : 123456;
+    const envIp = process.env.ATTENDANCE_DEVICE_IP;
+    const envPort = process.env.ATTENDANCE_DEVICE_PORT ? Number(process.env.ATTENDANCE_DEVICE_PORT) : undefined;
+    const envCommKey = process.env.ATTENDANCE_DEVICE_COMM_KEY !== undefined ? Number(process.env.ATTENDANCE_DEVICE_COMM_KEY) : undefined;
+
+    const targetIp = (ip && ip.trim()) ? ip.trim() : (envIp || '222.252.30.194');
+    const targetPort = port ? Number(port) : (envPort || 4370);
+    const targetCommKey = commKey !== undefined
+      ? Number(commKey)
+      : (envCommKey !== undefined ? envCommKey : 0);
 
     let zkInstance: any = null;
     try {
@@ -736,10 +742,10 @@ export class AttendanceService {
       if (zkInstance) {
         try {
           await zkInstance.enableDevice();
-        } catch (e) {}
+        } catch (e) { }
         try {
           await zkInstance.disconnect();
-        } catch (e) {}
+        } catch (e) { }
       }
     }
   }
@@ -800,25 +806,34 @@ export class AttendanceService {
   /**
    * Test connection ping to IP/Port
    */
-  async testConnection(ip: string, port: number, commKey?: number): Promise<{ success: boolean; message: string }> {
-    const targetCommKey = commKey !== undefined && commKey !== 0 ? Number(commKey) : 123456;
+  async testConnection(ip?: string, port?: number, commKey?: number): Promise<{ success: boolean; message: string }> {
+    const envIp = process.env.ATTENDANCE_DEVICE_IP;
+    const envPort = process.env.ATTENDANCE_DEVICE_PORT ? Number(process.env.ATTENDANCE_DEVICE_PORT) : undefined;
+    const envCommKey = process.env.ATTENDANCE_DEVICE_COMM_KEY !== undefined ? Number(process.env.ATTENDANCE_DEVICE_COMM_KEY) : undefined;
+
+    const targetIp = (ip && ip.trim()) ? ip.trim() : (envIp || '222.252.30.194');
+    const targetPort = port ? Number(port) : (envPort || 4370);
+    const targetCommKey = commKey !== undefined
+      ? Number(commKey)
+      : (envCommKey !== undefined ? envCommKey : 0);
+
     let zk: any = null;
     try {
       // @ts-ignore
       const ZKLibModule = await import('node-zklib');
       const ZKLib = ZKLibModule.default || ZKLibModule;
-      zk = new ZKLib(ip, port, 4000, 4000, targetCommKey);
+      zk = new ZKLib(targetIp, targetPort, 5000, 4000, targetCommKey);
       await zk.createSocket();
       await zk.disconnect();
-      return { success: true, message: `Kết nối thành công tới ${ip}:${port} (Mật mã: ${targetCommKey})!` };
+      return { success: true, message: `Kết nối thành công tới ${targetIp}:${targetPort} (Mật mã: ${targetCommKey})!` };
     } catch (e: any) {
       return {
         success: false,
-        message: `Không thể kết nối tới ${ip}:${port}: ${e?.message || 'Hết thời gian chờ (Timeout)'}. Hãy đảm bảo máy tính và máy chấm công cùng mạng LAN.`
+        message: `Không thể kết nối tới ${targetIp}:${targetPort}: ${e?.message || 'Hết thời gian chờ (Timeout)'}. Vui lòng kiểm tra IP WAN / NAT Port 4370 trên Router hoặc đảm bảo máy chấm công đang mở.`
       };
     } finally {
       if (zk) {
-        try { await zk.disconnect(); } catch (err) {}
+        try { await zk.disconnect(); } catch (err) { }
       }
     }
   }
@@ -1421,17 +1436,25 @@ export class AttendanceService {
    * Device configuration management
    */
   async getDeviceConfig(): Promise<any> {
+    // DB is the source of truth. Env vars are only used for initial document creation.
+    // Do NOT overwrite existing DB values with env vars on every read.
+    const envIp = process.env.ATTENDANCE_DEVICE_IP || '222.252.30.194';
+    const envPort = Number(process.env.ATTENDANCE_DEVICE_PORT) || 4370;
+    const envCommKey = process.env.ATTENDANCE_DEVICE_COMM_KEY !== undefined ? Number(process.env.ATTENDANCE_DEVICE_COMM_KEY) : 0;
+
     let dev = await this.deviceModel.findOne().lean();
     if (!dev) {
+      // Only create with env defaults when no document exists yet
       dev = await this.deviceModel.create({
         name: 'Máy chấm công Ronald Jack / ZKTeco',
-        ip: '192.168.1.201',
-        port: 4370,
-        commKey: 0,
+        ip: envIp,
+        port: envPort,
+        commKey: envCommKey,
         timeout: 5,
-        status: 'Chưa kết nối',
+        status: 'Đã kết nối',
       });
     }
+    // If document already exists, return it as-is from DB without overwriting
     return dev;
   }
 

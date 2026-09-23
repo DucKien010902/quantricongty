@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from "@/app/config/api";
 
 import React, { useState, useEffect, useMemo } from "react";
 import {
@@ -76,9 +77,9 @@ export default function AttendanceView({
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
   // Device sync modal state
-  const [deviceIp, setDeviceIp] = useState("192.168.1.201");
-  const [devicePort, setDevicePort] = useState(4370);
-  const [deviceCommKey, setDeviceCommKey] = useState(123456);
+  const [deviceIp, setDeviceIp] = useState(process.env.NEXT_PUBLIC_DEVICE_IP || "222.252.30.194");
+  const [devicePort, setDevicePort] = useState(Number(process.env.NEXT_PUBLIC_DEVICE_PORT) || 4370);
+  const [deviceCommKey, setDeviceCommKey] = useState(Number(process.env.NEXT_PUBLIC_DEVICE_COMM_KEY) || 123456);
   const [pingStatus, setPingStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [pingMessage, setPingMessage] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
@@ -90,6 +91,18 @@ export default function AttendanceView({
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4000);
   };
+
+  // Load device configuration from backend if available
+  useEffect(() => {
+    fetch(`${API_URL}/attendance/device/config`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((cfg) => {
+        if (cfg && cfg.ip) setDeviceIp(cfg.ip);
+        if (cfg && cfg.port) setDevicePort(Number(cfg.port));
+        if (cfg && cfg.commKey !== undefined) setDeviceCommKey(Number(cfg.commKey));
+      })
+      .catch(() => { });
+  }, []);
 
   // Load Data on tab or month change
   useEffect(() => {
@@ -104,7 +117,7 @@ export default function AttendanceView({
 
       // 1. Daily data
       const dailyRes = await fetch(
-        `http://localhost:5002/api/attendance/daily?month=${selectedMonth}&userId=${queryUser}&department=${queryDept}`
+        `${API_URL}/attendance/daily?month=${selectedMonth}&userId=${queryUser}&department=${queryDept}`
       );
       if (dailyRes.ok) {
         setDailyData(await dailyRes.json());
@@ -112,7 +125,7 @@ export default function AttendanceView({
 
       // 2. Monthly summary
       const monthlyRes = await fetch(
-        `http://localhost:5002/api/attendance/monthly-summary?month=${selectedMonth}&userId=${queryUser}&department=${queryDept}`
+        `${API_URL}/attendance/monthly-summary?month=${selectedMonth}&userId=${queryUser}&department=${queryDept}`
       );
       if (monthlyRes.ok) {
         setMonthlySummary(await monthlyRes.json());
@@ -120,7 +133,7 @@ export default function AttendanceView({
 
       // 3. Raw logs
       const rawRes = await fetch(
-        `http://localhost:5002/api/attendance/raw-logs?month=${selectedMonth}&userId=${queryUser}&page=${rawPage}&limit=50`
+        `${API_URL}/attendance/raw-logs?month=${selectedMonth}&userId=${queryUser}&page=${rawPage}&limit=50`
       );
       if (rawRes.ok) {
         const data = await rawRes.json();
@@ -143,7 +156,7 @@ export default function AttendanceView({
     )
       return;
     try {
-      const res = await fetch("http://localhost:5002/api/attendance/clear-all", { method: "POST" });
+      const res = await fetch(`${API_URL}/attendance/clear-all`, { method: "POST" });
       if (res.ok) {
         showToast("Đã xóa sạch toàn bộ dữ liệu chấm công! Bảng hiện tại trống 100%.");
         await loadAllData();
@@ -156,10 +169,10 @@ export default function AttendanceView({
   // Ping test
   const handleTestConnection = async () => {
     setPingStatus("testing");
-    setPingMessage("Đang mở kết nối TCP Socket 4370 tới thiết bị...");
+    setPingMessage(`Đang mở kết nối TCP Socket tới thiết bị (${deviceIp}:${devicePort})...`);
     setSyncFeedback(null);
     try {
-      const res = await fetch("http://localhost:5002/api/attendance/device/test-connection", {
+      const res = await fetch(`${API_URL}/attendance/device/test-connection`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ip: deviceIp, port: Number(devicePort), commKey: Number(deviceCommKey) }),
@@ -185,7 +198,7 @@ export default function AttendanceView({
     setPingMessage("");
     setSyncFeedback(null);
     try {
-      const res = await fetch("http://localhost:5002/api/attendance/device/sync", {
+      const res = await fetch(`${API_URL}/attendance/device/sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ip: deviceIp, port: Number(devicePort), commKey: Number(deviceCommKey) }),
@@ -209,7 +222,7 @@ export default function AttendanceView({
   const handleSeedData = async () => {
     setIsSyncing(true);
     try {
-      const res = await fetch("http://localhost:5002/api/attendance/seed", { method: "POST" });
+      const res = await fetch(`${API_URL}/attendance/seed`, { method: "POST" });
       if (res.ok) {
         showToast("Đã đồng bộ lại dữ liệu chấm công Tháng 9/2026 thành công!");
         await loadAllData();
@@ -458,11 +471,10 @@ export default function AttendanceView({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveTab("daily")}
-            className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition-all ${
-              activeTab === "daily"
+            className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition-all ${activeTab === "daily"
                 ? "border-[#1b365d] text-[#1b365d] bg-blue-50/50 rounded-t-xl"
                 : "border-transparent text-slate-500 hover:text-slate-800"
-            }`}
+              }`}
           >
             <Clock className="w-4 h-4" />
             <span>1. Bảng chấm công chi tiết</span>
@@ -473,11 +485,10 @@ export default function AttendanceView({
 
           <button
             onClick={() => setActiveTab("monthly")}
-            className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition-all ${
-              activeTab === "monthly"
+            className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition-all ${activeTab === "monthly"
                 ? "border-[#1b365d] text-[#1b365d] bg-blue-50/50 rounded-t-xl"
                 : "border-transparent text-slate-500 hover:text-slate-800"
-            }`}
+              }`}
           >
             <FileSpreadsheet className="w-4 h-4" />
             <span>2. Bảng tổng hợp công tháng</span>
@@ -488,11 +499,10 @@ export default function AttendanceView({
 
           <button
             onClick={() => setActiveTab("raw")}
-            className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition-all ${
-              activeTab === "raw"
+            className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition-all ${activeTab === "raw"
                 ? "border-[#1b365d] text-[#1b365d] bg-blue-50/50 rounded-t-xl"
                 : "border-transparent text-slate-500 hover:text-slate-800"
-            }`}
+              }`}
           >
             <Server className="w-4 h-4" />
             <span>3. Nhật ký chấm công máy</span>
@@ -583,7 +593,7 @@ export default function AttendanceView({
           loadAllData();
         }}
         onDownloadTemplate={() => {
-          window.open("http://localhost:5002/api/attendance/export-template", "_blank");
+          window.open(`${API_URL}/attendance/export-template`, "_blank");
           showToast("Đang tải file mẫu chấm công...");
         }}
       />
